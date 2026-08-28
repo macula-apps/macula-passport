@@ -1,9 +1,14 @@
 //! Subject-owned identity/biometric/health dossier, event-sourced on-device.
 //!
-//! No domain code yet. Storage substrate is decided (SQLite via `rusqlite`,
-//! `bundled` feature — see the repo README), but the event schema, the
-//! dossier's command/event set, and the `disclose_data` RPC surface all
-//! depend on field-level decisions (identity document types, biometric
-//! template formats, health-observation vocabulary, consent-grant taxonomy)
-//! that haven't been made yet. Nothing here is a placeholder for that work;
-//! it doesn't exist until those decisions do.
+//! Storage substrate is decided (SQLite via `rusqlite`, `bundled`
+//! feature) and the event schema exists (see [`event::PassportEvent`]),
+//! but there is no command/handler layer yet — nothing here validates a
+//! command against replayed state and appends an event as a consequence.
+//! SQLite persistence (append/replay) is also not wired yet. Both are the
+//! next increment, not this one. See the repo README for what's settled
+//! and what's still open.
+
+pub mod biometric;
+pub mod claim;
+pub mod event;
+pub mod grant;

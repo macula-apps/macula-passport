@@ -56,9 +56,34 @@ reliable across iOS/Android builds than depending on the OS copy being
 present and ABI-stable at link time, and still far lighter than the
 alternatives above.
 
-**Still open:** every field-level schema (identity document types per
-jurisdiction, biometric template formats, health-observation vocabulary,
-consent-grant taxonomy) and the UniFFI binding shape.
+**Settled, 2026-08-28: field-level schemas, as a claims model rather than
+one schema per document type.** `claim_type` is an open dotted string
+(`"identity.passport.icao9303"`, `"health.vaccination.covid19"`), not an
+enum enumerating every jurisdiction's document format — that enumeration
+is a mobile-UI concern (which fields to prompt for a given `claim_type`),
+not a core-schema one. See `src/claim.rs`, `src/grant.rs`, `src/event.rs`
+(the 9 design-doc desks as concrete event payloads).
+
+**Biometric samples are structurally non-disclosable.** Per an explicit
+decision, raw template bytes must never leave the device — `BiometricSample`
+(`src/biometric.rs`) is deliberately not a `Claim`: it has no `claim_type`,
+so `Grant`/`disclose_data` have no path to it at all. The only sanctioned
+mesh operation on it is a match verdict against a live-captured probe, not
+disclosure of the template — that verification flow (procedure shape, and
+how to require genuine in-the-moment subject awareness rather than a
+silent remote probe) isn't designed yet.
+
+**Still open:** the command/handler layer (nothing yet validates a command
+against replayed state and appends an event), SQLite persistence
+(append/replay not wired), and the UniFFI binding shape — deferred until
+there's real core logic to wrap, matching `macula-rust-sdk`'s own build
+order (core crate complete, then the `-ffi` crate). Recommended shape when
+that happens: the consent-decision logic (`disclose_data`, grant
+validity, custodian authority) stays in this core crate, not in the
+mobile-side `FfiCallHandler` implementation — otherwise "same command,
+same history, same decision" depends on reimplementing that logic
+identically in Swift and Kotlin. The `-ffi` crate's `FfiCallHandler`
+should just parse `(procedure, payload)` and call into the core.
 
 ## License
 
