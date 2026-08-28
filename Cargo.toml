@@ -1,5 +1,5 @@
 [workspace]
-members = []
+members = ["macula-passport-ffi"]
 
 [package]
 name = "macula-passport"
@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
 authors = ["Macula <raf.lefever@erlef.org>"]
-description = "Subject-owned identity/biometric/health dossier, event-sourced on-device. No domain code yet — see repo README."
+description = "Subject-owned identity/biometric/health dossier, event-sourced on-device."
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/macula-apps/macula-passport"
 publish = false

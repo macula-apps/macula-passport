@@ -95,14 +95,38 @@ which is already the trust boundary. `disclose_data` alone crosses an
 actual security boundary (a remote mesh party), which is why it alone is
 decided against the dossier's grants rather than simply accepted.
 
-**Still open:** the UniFFI binding shape — deferred until there's a
-reason beyond speculation to pick one, matching `macula-rust-sdk`'s own
-build order (core crate complete, then the `-ffi` crate). Recommendation
-carried over: the decision logic above must stay in this core crate, not
-in the mobile-side `FfiCallHandler` implementation, or "same command,
-same history, same decision" depends on reimplementing it identically in
-Swift and Kotlin — the `-ffi` crate's handler should just parse
-`(procedure, payload)` and call into `handler::handle`.
+**UniFFI bindings built, 2026-08-28** (`macula-passport-ffi/`, new
+workspace member). `FfiPassport` is the one exported object: one method
+per desk (`initiate`, `registerIdentityDocument`, `grantDataAccess`,
+`discloseData`, ...), each doing load→replay→`handler::handle`→append as
+a single call — the mobile side never manually replays. All decision
+logic stays in the core crate exactly as planned; nothing here decides
+anything, it only marshals `Command` in and `PassportEvent`/`DomainError`
+out. Structure mirrors `macula-rust-sdk-ffi`'s relationship to
+`macula-rust-sdk` (a separate crate, so the core stays UniFFI-free);
+`FfiValue` mirrors that crate's own restricted CBOR-value mirror
+(`Null`/`Int`/`Bytes`/`Text`/`Float` — no `List`/`Map` yet, same
+limitation, not independently reinvented).
+
+No Kotlin/Swift/mobile toolchain exists in this dev environment (same
+constraint `macula-rust-sdk-ffi` has), so verification matches what that
+repo's own CI settles for: real `uniffi-bindgen generate` runs for both
+`--language kotlin` and `--language swift`, confirming the full API
+surface (`discloseData`, `grantDataAccess`, `FfiDisclosureOutcome`, ...)
+actually codegens with correct types and doc comments, not just that the
+Rust side compiles. Plus a full grant→use→deny→revoke integration test
+through the actual `FfiPassport` object (`macula-passport-ffi/tests/lifecycle.rs`),
+separate from the core crate's own test of the same lifecycle, since the
+FFI layer's own marshalling (byte-length validation, the post-disclosure
+claim lookup) isn't exercised by the core tests at all. `cargo test
+--workspace` and `cargo clippy --workspace --all-targets` both clean.
+
+**Still open:** no CI workflow yet (the sibling SDK repos all run a
+bindgen codegen smoke test in GitHub Actions; this repo doesn't have
+Actions configured at all) — not built now, flagging as the natural next
+piece rather than assuming it's wanted. No actual Kotlin/Swift consumer
+app exists — the bindings are verified to generate correctly, not
+run against a real mobile build (this dev box has no toolchain for that).
 
 ## License
 
