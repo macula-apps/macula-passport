@@ -1,3 +1,7 @@
+use macula_rust_sdk::cbor::Value;
+
+use crate::wire::{self, CodecError};
+
 /// A biometric sample — face, fingerprint, iris template.
 ///
 /// Deliberately NOT a [`crate::claim::Claim`]. Per the 2026-08-28 design
@@ -25,4 +29,21 @@ pub struct BiometricSample {
     pub modality: String,
     pub template: Vec<u8>,
     pub captured_at: i64,
+}
+
+impl BiometricSample {
+    pub fn to_cbor(&self) -> Value {
+        Value::Map(vec![])
+            .with_field("modality", Value::text(&self.modality))
+            .with_field("template", Value::Bytes(self.template.clone()))
+            .with_field("captured_at", Value::Int(self.captured_at as i128))
+    }
+
+    pub fn from_cbor(v: &Value) -> Result<Self, CodecError> {
+        Ok(BiometricSample {
+            modality: wire::text(v, "modality")?,
+            template: wire::bytes(v, "template")?,
+            captured_at: wire::int(v, "captured_at")?,
+        })
+    }
 }

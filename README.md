@@ -73,17 +73,36 @@ disclosure of the template — that verification flow (procedure shape, and
 how to require genuine in-the-moment subject awareness rather than a
 silent remote probe) isn't designed yet.
 
-**Still open:** the command/handler layer (nothing yet validates a command
-against replayed state and appends an event), SQLite persistence
-(append/replay not wired), and the UniFFI binding shape — deferred until
-there's real core logic to wrap, matching `macula-rust-sdk`'s own build
-order (core crate complete, then the `-ffi` crate). Recommended shape when
-that happens: the consent-decision logic (`disclose_data`, grant
-validity, custodian authority) stays in this core crate, not in the
-mobile-side `FfiCallHandler` implementation — otherwise "same command,
-same history, same decision" depends on reimplementing that logic
-identically in Swift and Kotlin. The `-ffi` crate's `FfiCallHandler`
-should just parse `(procedure, payload)` and call into the core.
+**Command/handler layer and SQLite persistence are built, 2026-08-28.**
+`Store` (`src/store.rs`) is the append-only SQLite log; `Dossier`
+(`src/dossier.rs`) replays a subject's stream into current state;
+`handler::handle` (`src/handler.rs`) turns a `Command` into an event —
+one `maybe_*` function per design-doc desk — or rejects it with a
+`DomainError` before anything is appended. `disclose_data` is the one
+exception: it never rejects, it decides `DataDisclosedV1` vs
+`DataAccessDeniedV1` (with the specific reason: no matching grant,
+expired, or revoked) against `Dossier::active_grants`, matching the
+design doc's determinism rule — reads only the dossier's own replayed
+state, nothing external. Covered by a full grant→use→deny→revoke
+integration test (`tests/lifecycle.rs`) plus CBOR round-trip tests for
+every event variant; `cargo test`, `cargo clippy --all-targets` both
+clean.
+
+Local commands (`initiate_passport` through `revoke_data_access`) check
+state preconditions only, not caller authority — they only ever
+originate from the app running locally on the subject's own device,
+which is already the trust boundary. `disclose_data` alone crosses an
+actual security boundary (a remote mesh party), which is why it alone is
+decided against the dossier's grants rather than simply accepted.
+
+**Still open:** the UniFFI binding shape — deferred until there's a
+reason beyond speculation to pick one, matching `macula-rust-sdk`'s own
+build order (core crate complete, then the `-ffi` crate). Recommendation
+carried over: the decision logic above must stay in this core crate, not
+in the mobile-side `FfiCallHandler` implementation, or "same command,
+same history, same decision" depends on reimplementing it identically in
+Swift and Kotlin — the `-ffi` crate's handler should just parse
+`(procedure, payload)` and call into `handler::handle`.
 
 ## License
 

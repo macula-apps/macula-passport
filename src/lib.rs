@@ -1,14 +1,18 @@
 //! Subject-owned identity/biometric/health dossier, event-sourced on-device.
 //!
-//! Storage substrate is decided (SQLite via `rusqlite`, `bundled`
-//! feature) and the event schema exists (see [`event::PassportEvent`]),
-//! but there is no command/handler layer yet — nothing here validates a
-//! command against replayed state and appends an event as a consequence.
-//! SQLite persistence (append/replay) is also not wired yet. Both are the
-//! next increment, not this one. See the repo README for what's settled
-//! and what's still open.
+//! `Store` (SQLite) persists a subject's [`event::PassportEvent`] stream;
+//! `Dossier` replays it into current state; `handler::handle` turns a
+//! [`command::Command`] into an event, or rejects it with a
+//! [`error::DomainError`] before anything is appended. No UniFFI bindings
+//! yet — see the repo README for what's settled and what's still open.
 
 pub mod biometric;
 pub mod claim;
+pub mod command;
+pub mod dossier;
+pub mod error;
 pub mod event;
 pub mod grant;
+pub mod handler;
+pub mod store;
+mod wire;
