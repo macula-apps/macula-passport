@@ -5,12 +5,12 @@ animal in someone's care — event-sourced **on the subject's own device**,
 disclosed to other parties only through an explicit, per-request,
 consent-gated exchange. Never broadcast, never stored anywhere but here.
 
-## Status: design, not code
+## Status: design, mostly not code
 
-This repo is a container, not a build yet. No Cargo workspace, no UniFFI
-bindings, no domain code — those need real decisions first (storage engine,
-field-level schemas for identity/biometric/health data, disclosure
-protocol shape), not placeholders standing in for them.
+The Cargo workspace exists as plumbing only — a `core` crate wired to
+`rusqlite` — no domain code, no schema, no UniFFI bindings yet. Those
+still need real decisions (see "Still open" below), not placeholders
+standing in for them.
 
 **Prior art to read before writing any of that:**
 
@@ -43,11 +43,22 @@ entirely — a verifiable credential signed once while online, checkable
 independently later — and would be a separate capability, not a queue
 bolted onto this one.
 
-**Still open:** the embedded storage/event-log substrate (leaning SQLite
-via `rusqlite`, already present on both target platforms, over a bundled
-Rust KV engine or a full ES framework crate — not yet decided), and every
-field-level schema (identity document types per jurisdiction, biometric
-template formats, health-observation vocabulary, consent-grant taxonomy).
+**Settled, 2026-08-28: storage is SQLite via `rusqlite`, `bundled` feature.**
+Not a bundled Rust KV engine, not a full ES framework crate (`cqrs-es`,
+`eventsourced`, `disintegrate`, `evento` — all real and current as of
+Aug 2026, but shaped for server deployments this app doesn't need). The
+actual requirement is narrow: an append-only events table, replay to
+rebuild the dossier's grant/revoke state, a couple of local projections
+for the UI — a schema to hand-roll, not a reason to take on a framework.
+`bundled` compiles SQLite's C source alongside the Rust code rather than
+linking whatever SQLite version happens to ship on a given device — more
+reliable across iOS/Android builds than depending on the OS copy being
+present and ABI-stable at link time, and still far lighter than the
+alternatives above.
+
+**Still open:** every field-level schema (identity document types per
+jurisdiction, biometric template formats, health-observation vocabulary,
+consent-grant taxonomy) and the UniFFI binding shape.
 
 ## License
 
