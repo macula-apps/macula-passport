@@ -35,7 +35,7 @@ impl std::fmt::Display for CodecError {
 
 impl std::error::Error for CodecError {}
 
-// ---- Value field-extraction helpers (private: only this module needs them) ----
+// ---- Value field extractors (private: only this module needs them) ----
 
 fn missing(key: &str) -> CodecError {
     CodecError(format!("missing field {key:?}"))

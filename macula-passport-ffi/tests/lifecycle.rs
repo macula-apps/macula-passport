@@ -1,13 +1,16 @@
-//! Same grant→use→deny→revoke shape as the core crate's own
+//! Same grant→use→deny→revoke shape as `macula-passport`'s own
 //! `tests/lifecycle.rs`, but through `FfiPassport` — this exercises the
-//! FFI layer's own marshalling (`to_uuid`, the apply/state helpers, the
-//! post-disclosure claim lookup), which the core crate's tests don't
-//! touch at all.
+//! FFI layer's own marshalling (`to_uuid`, the apply/state internals,
+//! the post-disclosure claim lookup), which `macula-passport`'s own
+//! tests don't touch at all.
 
-use macula_passport_ffi::{
-    new_holder_id, FfiClaim, FfiDenialReason, FfiDisclosureOutcome, FfiPassport, FfiHolderKind,
-    FfiValue,
-};
+use macula_passport_ffi::claim::FfiClaim;
+use macula_passport_ffi::denial_reason::FfiDenialReason;
+use macula_passport_ffi::desks::disclose_data::FfiDisclosureOutcome;
+use macula_passport_ffi::dossier::FfiPassport;
+use macula_passport_ffi::holder::FfiHolderKind;
+use macula_passport_ffi::value::FfiValue;
+use macula_passport_ffi::{new_holder_id, FfiError};
 
 fn key(b: u8) -> Vec<u8> {
     vec![b; 32]
@@ -98,5 +101,5 @@ fn rejects_a_grant_id_of_the_wrong_length() {
     passport.initiate(FfiHolderKind::Human, 0).unwrap();
 
     let err = passport.revoke_data_access(vec![1, 2, 3], key(1), 1).unwrap_err();
-    assert!(matches!(err, macula_passport_ffi::FfiError::WrongByteLength { expected: 16, actual: 3 }));
+    assert!(matches!(err, FfiError::WrongByteLength { expected: 16, actual: 3 }));
 }

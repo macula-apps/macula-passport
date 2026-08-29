@@ -5,10 +5,10 @@ animal in someone's care — event-sourced **on the holder's own device**,
 disclosed to other parties only through an explicit, per-request,
 consent-gated exchange. Never broadcast, never stored anywhere but here.
 
-## Status: v0 core built, no mobile app yet
+## Status: v0 built, no mobile app yet
 
-The Rust core (`src/`) and its UniFFI bindings (`macula-passport-ffi/`) are
-both built, tested, and structured — one module per capability, domain types
+`macula-passport` (`src/`) and its UniFFI bindings (`macula-passport-ffi/`)
+are both built, tested, and structured — one module per capability, domain types
 with zero knowledge of how they're persisted. What's still missing: CI, and
 an actual Kotlin/Swift app consuming these bindings. See "Built so far" and
 "Still open" below for the real, current state.
@@ -134,8 +134,8 @@ decided against the dossier's grants rather than simply accepted.
 `FfiPassport` is the one exported object: one method per desk (`initiate`,
 `registerIdentityDocument`, `grantDataAccess`, `discloseData`, ...), each
 doing load→replay→`handler::handle`→append as a single call — the mobile
-side never manually replays. All decision logic stays in the core crate;
-nothing in the FFI crate decides anything, it only marshals `Command` in
+side never manually replays. All decision logic stays in `macula-passport`;
+nothing in `macula-passport-ffi` decides anything, it only marshals `Command` in
 and `PassportEvent`/`DomainError` out. Structure mirrors
 `macula-rust-sdk-ffi`'s relationship to `macula-rust-sdk` (a separate
 crate, so the core stays UniFFI-free); `FfiValue` mirrors that crate's
