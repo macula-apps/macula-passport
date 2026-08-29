@@ -5,7 +5,7 @@
 //! touch at all.
 
 use macula_passport_ffi::{
-    new_subject_id, FfiClaim, FfiDenialReason, FfiDisclosureOutcome, FfiPassport, FfiSubjectKind,
+    new_holder_id, FfiClaim, FfiDenialReason, FfiDisclosureOutcome, FfiPassport, FfiHolderKind,
     FfiValue,
 };
 
@@ -23,15 +23,15 @@ fn temp_db_path(name: &str) -> String {
 #[test]
 fn disclosure_lifecycle_through_the_ffi_object() {
     let path = temp_db_path("lifecycle");
-    let subject_id = new_subject_id();
-    assert_eq!(subject_id.len(), 16);
+    let holder_id = new_holder_id();
+    assert_eq!(holder_id.len(), 16);
 
-    let passport = FfiPassport::open(path, subject_id).unwrap();
-    let subject_key = key(1);
+    let passport = FfiPassport::open(path, holder_id).unwrap();
+    let holder_key = key(1);
     let requester = key(2);
 
     assert!(!passport.is_initiated().unwrap());
-    passport.initiate(FfiSubjectKind::Human, 100).unwrap();
+    passport.initiate(FfiHolderKind::Human, 100).unwrap();
     assert!(passport.is_initiated().unwrap());
 
     passport
@@ -43,7 +43,7 @@ fn disclosure_lifecycle_through_the_ffi_object() {
                 captured_at: 100,
                 expires_at: None,
             },
-            subject_key.clone(),
+            holder_key.clone(),
         )
         .unwrap();
     assert_eq!(passport.list_claims().unwrap().len(), 1);
@@ -63,7 +63,7 @@ fn disclosure_lifecycle_through_the_ffi_object() {
             requester.clone(),
             "border check".to_string(),
             Some(1000),
-            subject_key.clone(),
+            holder_key.clone(),
         )
         .unwrap();
     assert_eq!(grant_id.len(), 16);
@@ -79,7 +79,7 @@ fn disclosure_lifecycle_through_the_ffi_object() {
         other => panic!("expected Disclosed, got {other:?}"),
     }
 
-    passport.revoke_data_access(grant_id, subject_key, 300).unwrap();
+    passport.revoke_data_access(grant_id, holder_key, 300).unwrap();
     assert_eq!(passport.list_active_grants().unwrap().len(), 0);
 
     let denied_again = passport
@@ -94,8 +94,8 @@ fn disclosure_lifecycle_through_the_ffi_object() {
 #[test]
 fn rejects_a_grant_id_of_the_wrong_length() {
     let path = temp_db_path("bad-grant-id");
-    let passport = FfiPassport::open(path, new_subject_id()).unwrap();
-    passport.initiate(FfiSubjectKind::Human, 0).unwrap();
+    let passport = FfiPassport::open(path, new_holder_id()).unwrap();
+    passport.initiate(FfiHolderKind::Human, 0).unwrap();
 
     let err = passport.revoke_data_access(vec![1, 2, 3], key(1), 1).unwrap_err();
     assert!(matches!(err, macula_passport_ffi::FfiError::WrongByteLength { expected: 16, actual: 3 }));

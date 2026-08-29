@@ -1,6 +1,6 @@
 /// Why a command was rejected before it ever became an event. Distinct
 /// from `disclose_data` being denied — that's not a rejected command,
-/// it's a successful [`crate::event::PassportEvent::DataAccessDeniedV1`],
+/// it's a successful [`crate::dossier::PassportEvent::DataAccessDeniedV1`],
 /// see [`crate::handler`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DomainError {

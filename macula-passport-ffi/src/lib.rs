@@ -39,12 +39,21 @@ uniffi::setup_scaffolding!();
 use std::path::Path;
 use std::sync::Mutex;
 
-use macula_passport::biometric::BiometricSample;
+use macula_passport::biometric_sample::BiometricSample;
 use macula_passport::claim::Claim;
-use macula_passport::command::Command;
-use macula_passport::dossier::Dossier;
-use macula_passport::event::{DenialReason, PassportEvent, SubjectKind};
+use macula_passport::denial_reason::DenialReason;
+use macula_passport::desks::assign_custodian::AssignCustodianV1;
+use macula_passport::desks::capture_biometric_sample::CaptureBiometricSampleV1;
+use macula_passport::desks::disclose_data::DiscloseDataV1;
+use macula_passport::desks::grant_data_access::GrantDataAccessV1;
+use macula_passport::desks::initiate_passport::InitiatePassportV1;
+use macula_passport::desks::record_health_observation::RecordHealthObservationV1;
+use macula_passport::desks::register_identity_document::RegisterIdentityDocumentV1;
+use macula_passport::desks::revoke_data_access::RevokeDataAccessV1;
+use macula_passport::desks::transfer_custodianship::TransferCustodianshipV1;
+use macula_passport::dossier::{Command, Dossier, PassportEvent};
 use macula_passport::grant::Grant;
+use macula_passport::holder::HolderKind;
 use macula_passport::store::Store;
 use uuid::Uuid;
 
@@ -77,7 +86,7 @@ impl From<macula_passport::store::StoreError> for FfiError {
 }
 
 /// 16 raw bytes -> [`Uuid`], with both lengths reported on mismatch —
-/// UniFFI has no fixed-size byte array type, so subject/grant ids cross
+/// UniFFI has no fixed-size byte array type, so holder/grant ids cross
 /// the boundary as `Vec<u8>` and get validated here.
 fn to_uuid(bytes: Vec<u8>) -> Result<Uuid, FfiError> {
     let actual = bytes.len() as u32;
@@ -132,16 +141,16 @@ impl TryFrom<macula_rust_sdk::cbor::Value> for FfiValue {
 }
 
 #[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FfiSubjectKind {
+pub enum FfiHolderKind {
     Human,
     Animal,
 }
 
-impl From<FfiSubjectKind> for SubjectKind {
-    fn from(k: FfiSubjectKind) -> Self {
+impl From<FfiHolderKind> for HolderKind {
+    fn from(k: FfiHolderKind) -> Self {
         match k {
-            FfiSubjectKind::Human => SubjectKind::Human,
-            FfiSubjectKind::Animal => SubjectKind::Animal,
+            FfiHolderKind::Human => HolderKind::Human,
+            FfiHolderKind::Animal => HolderKind::Animal,
         }
     }
 }
@@ -249,37 +258,37 @@ pub enum FfiDisclosureOutcome {
     Denied { reason: FfiDenialReason },
 }
 
-/// Generates a fresh subject id (a v7 UUID, same scheme the core crate
+/// Generates a fresh holder id (a v7 UUID, same scheme the core crate
 /// uses for grant ids) — call once per new dossier and persist the
 /// result locally (e.g. the platform keychain), then pass it to every
-/// future [`FfiPassport::open`] for that subject.
+/// future [`FfiPassport::open`] for that holder.
 #[uniffi::export]
-pub fn new_subject_id() -> Vec<u8> {
+pub fn new_holder_id() -> Vec<u8> {
     Uuid::now_v7().as_bytes().to_vec()
 }
 
-/// One subject's dossier, backed by a SQLite file at `path`. Every
+/// One holder's dossier, backed by a SQLite file at `path`. Every
 /// method here does load-replay-decide-append (or load-replay-read) as
 /// one call — the mobile side never manually replays.
 #[derive(uniffi::Object)]
 pub struct FfiPassport {
     store: Mutex<Store>,
-    subject_id: Uuid,
+    holder_id: Uuid,
 }
 
 impl FfiPassport {
     fn apply(&self, cmd: Command) -> Result<PassportEvent, FfiError> {
         let mut store = self.store.lock().expect("store mutex poisoned");
-        let events = store.load(self.subject_id)?;
+        let events = store.load(self.holder_id)?;
         let state = Dossier::replay(&events);
         let event = macula_passport::handler::handle(&state, cmd)?;
-        store.append(self.subject_id, &event)?;
+        store.append(self.holder_id, &event)?;
         Ok(event)
     }
 
     fn state(&self) -> Result<Dossier, FfiError> {
         let store = self.store.lock().expect("store mutex poisoned");
-        let events = store.load(self.subject_id)?;
+        let events = store.load(self.holder_id)?;
         Ok(Dossier::replay(&events))
     }
 }
@@ -287,15 +296,18 @@ impl FfiPassport {
 #[uniffi::export]
 impl FfiPassport {
     #[uniffi::constructor]
-    pub fn open(path: String, subject_id: Vec<u8>) -> Result<Self, FfiError> {
+    pub fn open(path: String, holder_id: Vec<u8>) -> Result<Self, FfiError> {
         Ok(FfiPassport {
             store: Mutex::new(Store::open(Path::new(&path))?),
-            subject_id: to_uuid(subject_id)?,
+            holder_id: to_uuid(holder_id)?,
         })
     }
 
-    pub fn initiate(&self, subject_kind: FfiSubjectKind, at: i64) -> Result<(), FfiError> {
-        self.apply(Command::InitiatePassport { subject_kind: subject_kind.into(), at })?;
+    pub fn initiate(&self, holder_kind: FfiHolderKind, at: i64) -> Result<(), FfiError> {
+        self.apply(Command::InitiatePassportV1(InitiatePassportV1 {
+            holder_kind: holder_kind.into(),
+            at,
+        }))?;
         Ok(())
     }
 
@@ -305,12 +317,12 @@ impl FfiPassport {
         reason: Option<String>,
         at: i64,
     ) -> Result<(), FfiError> {
-        self.apply(Command::AssignCustodian { custodian, reason, at })?;
+        self.apply(Command::AssignCustodianV1(AssignCustodianV1 { custodian, reason, at }))?;
         Ok(())
     }
 
     pub fn transfer_custodianship(&self, to: Option<Vec<u8>>, at: i64) -> Result<(), FfiError> {
-        self.apply(Command::TransferCustodianship { to, at })?;
+        self.apply(Command::TransferCustodianshipV1(TransferCustodianshipV1 { to, at }))?;
         Ok(())
     }
 
@@ -319,7 +331,10 @@ impl FfiPassport {
         claim: FfiClaim,
         acting_as: Vec<u8>,
     ) -> Result<(), FfiError> {
-        self.apply(Command::RegisterIdentityDocument { claim: claim.into(), acting_as })?;
+        self.apply(Command::RegisterIdentityDocumentV1(RegisterIdentityDocumentV1 {
+            claim: claim.into(),
+            acting_as,
+        }))?;
         Ok(())
     }
 
@@ -328,7 +343,10 @@ impl FfiPassport {
         sample: FfiBiometricSample,
         acting_as: Vec<u8>,
     ) -> Result<(), FfiError> {
-        self.apply(Command::CaptureBiometricSample { sample: sample.into(), acting_as })?;
+        self.apply(Command::CaptureBiometricSampleV1(CaptureBiometricSampleV1 {
+            sample: sample.into(),
+            acting_as,
+        }))?;
         Ok(())
     }
 
@@ -337,7 +355,10 @@ impl FfiPassport {
         claim: FfiClaim,
         acting_as: Vec<u8>,
     ) -> Result<(), FfiError> {
-        self.apply(Command::RecordHealthObservation { claim: claim.into(), acting_as })?;
+        self.apply(Command::RecordHealthObservationV1(RecordHealthObservationV1 {
+            claim: claim.into(),
+            acting_as,
+        }))?;
         Ok(())
     }
 
@@ -351,16 +372,16 @@ impl FfiPassport {
         expires_at: Option<i64>,
         acting_as: Vec<u8>,
     ) -> Result<Vec<u8>, FfiError> {
-        let event = self.apply(Command::GrantDataAccess {
+        let event = self.apply(Command::GrantDataAccessV1(GrantDataAccessV1 {
             claim_type_prefix,
             requester,
             purpose,
             expires_at,
             acting_as,
-        })?;
+        }))?;
         match event {
-            PassportEvent::DataAccessGrantedV1 { grant, .. } => Ok(grant.id.as_bytes().to_vec()),
-            _ => unreachable!("apply(GrantDataAccess) always returns DataAccessGrantedV1"),
+            PassportEvent::DataAccessGrantedV1(e) => Ok(e.grant.id.as_bytes().to_vec()),
+            _ => unreachable!("apply(GrantDataAccessV1) always returns DataAccessGrantedV1"),
         }
     }
 
@@ -370,7 +391,11 @@ impl FfiPassport {
         acting_as: Vec<u8>,
         at: i64,
     ) -> Result<(), FfiError> {
-        self.apply(Command::RevokeDataAccess { grant_id: to_uuid(grant_id)?, acting_as, at })?;
+        self.apply(Command::RevokeDataAccessV1(RevokeDataAccessV1 {
+            grant_id: to_uuid(grant_id)?,
+            acting_as,
+            at,
+        }))?;
         Ok(())
     }
 
@@ -386,10 +411,13 @@ impl FfiPassport {
         claim_type: String,
         at: i64,
     ) -> Result<FfiDisclosureOutcome, FfiError> {
-        let event =
-            self.apply(Command::DiscloseData { requester, claim_type: claim_type.clone(), at })?;
+        let event = self.apply(Command::DiscloseDataV1(DiscloseDataV1 {
+            requester,
+            claim_type: claim_type.clone(),
+            at,
+        }))?;
         match event {
-            PassportEvent::DataDisclosedV1 { .. } => {
+            PassportEvent::DataDisclosedV1(_) => {
                 let state = self.state()?;
                 let claim = state.current_claim(&claim_type, at).cloned().ok_or_else(|| {
                     FfiError::Store {
@@ -399,10 +427,12 @@ impl FfiPassport {
                 })?;
                 Ok(FfiDisclosureOutcome::Disclosed { claim: FfiClaim::try_from(claim)? })
             }
-            PassportEvent::DataAccessDeniedV1 { reason, .. } => {
-                Ok(FfiDisclosureOutcome::Denied { reason: reason.into() })
+            PassportEvent::DataAccessDeniedV1(e) => {
+                Ok(FfiDisclosureOutcome::Denied { reason: e.reason.into() })
             }
-            _ => unreachable!("apply(DiscloseData) always returns DataDisclosedV1 or DataAccessDeniedV1"),
+            _ => unreachable!(
+                "apply(DiscloseDataV1) always returns DataDisclosedV1 or DataAccessDeniedV1"
+            ),
         }
     }
 

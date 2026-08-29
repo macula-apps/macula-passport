@@ -1,14 +1,16 @@
-//! SQLite-backed append-only event log. One `subject_id` per dossier;
-//! `seq` is the 0-based position of an event within that subject's
-//! stream — the ordering `Dossier::replay` depends on.
+//! SQLite-backed append-only event log — the only module besides
+//! `codec` that knows how this crate's events are stored. One
+//! `holder_id` per dossier; `seq` is the 0-based position of an event
+//! within that holder's stream, the ordering `Dossier::replay` depends
+//! on.
 
 use std::path::Path;
 
 use rusqlite::{params, Connection};
 use uuid::Uuid;
 
-use crate::event::PassportEvent;
-use crate::wire::CodecError;
+use crate::codec::{self, CodecError};
+use crate::dossier::PassportEvent;
 
 #[derive(Debug)]
 pub enum StoreError {
@@ -45,11 +47,11 @@ pub struct Store {
 
 const SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS events (
-        subject_id BLOB NOT NULL,
+        holder_id BLOB NOT NULL,
         seq INTEGER NOT NULL,
         event_kind TEXT NOT NULL,
         payload BLOB NOT NULL,
-        PRIMARY KEY (subject_id, seq)
+        PRIMARY KEY (holder_id, seq)
     );
 ";
 
@@ -66,33 +68,33 @@ impl Store {
         Ok(Store { conn })
     }
 
-    /// Appends `event` as the next slip in `subject_id`'s stream. The
+    /// Appends `event` as the next slip in `holder_id`'s stream. The
     /// caller is responsible for having validated the event against
-    /// replayed state first (`Store` just persists — see `crate::handler`
-    /// for the validate-then-append flow).
-    pub fn append(&mut self, subject_id: Uuid, event: &PassportEvent) -> Result<(), StoreError> {
+    /// replayed state first (`Store` just persists — see
+    /// `crate::handler` for the validate-then-append flow).
+    pub fn append(&mut self, holder_id: Uuid, event: &PassportEvent) -> Result<(), StoreError> {
         let tx = self.conn.transaction()?;
         let next_seq: i64 = tx.query_row(
-            "SELECT COALESCE(MAX(seq) + 1, 0) FROM events WHERE subject_id = ?1",
-            params![subject_id.as_bytes().to_vec()],
+            "SELECT COALESCE(MAX(seq) + 1, 0) FROM events WHERE holder_id = ?1",
+            params![holder_id.as_bytes().to_vec()],
             |row| row.get(0),
         )?;
-        let payload = macula_rust_sdk::cbor::encode(&event.to_cbor())
+        let payload = macula_rust_sdk::cbor::encode(&codec::encode_event(event))
             .map_err(|e| StoreError::Codec(CodecError(e.to_string())))?;
         tx.execute(
-            "INSERT INTO events (subject_id, seq, event_kind, payload) VALUES (?1, ?2, ?3, ?4)",
-            params![subject_id.as_bytes().to_vec(), next_seq, event.kind(), payload],
+            "INSERT INTO events (holder_id, seq, event_kind, payload) VALUES (?1, ?2, ?3, ?4)",
+            params![holder_id.as_bytes().to_vec(), next_seq, codec::event_kind(event), payload],
         )?;
         tx.commit()?;
         Ok(())
     }
 
-    /// Replays `subject_id`'s full stream in `seq` order.
-    pub fn load(&self, subject_id: Uuid) -> Result<Vec<PassportEvent>, StoreError> {
+    /// Replays `holder_id`'s full stream in `seq` order.
+    pub fn load(&self, holder_id: Uuid) -> Result<Vec<PassportEvent>, StoreError> {
         let mut stmt = self
             .conn
-            .prepare("SELECT payload FROM events WHERE subject_id = ?1 ORDER BY seq ASC")?;
-        let rows = stmt.query_map(params![subject_id.as_bytes().to_vec()], |row| {
+            .prepare("SELECT payload FROM events WHERE holder_id = ?1 ORDER BY seq ASC")?;
+        let rows = stmt.query_map(params![holder_id.as_bytes().to_vec()], |row| {
             row.get::<_, Vec<u8>>(0)
         })?;
 
@@ -101,7 +103,7 @@ impl Store {
             let payload = row?;
             let value = macula_rust_sdk::cbor::decode(&payload)
                 .map_err(|e| StoreError::Codec(CodecError(e.to_string())))?;
-            events.push(PassportEvent::from_cbor(&value)?);
+            events.push(codec::decode_event(&value)?);
         }
         Ok(events)
     }
@@ -109,43 +111,45 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
-    use crate::event::SubjectKind;
+    use crate::desks::assign_custodian::CustodianAssignedV1;
+    use crate::desks::initiate_passport::PassportInitiatedV1;
+    use crate::holder::HolderKind;
 
     use super::*;
 
     #[test]
     fn append_then_load_preserves_order_and_content() {
         let mut store = Store::open_in_memory().unwrap();
-        let subject = Uuid::now_v7();
+        let holder = Uuid::now_v7();
 
         store
             .append(
-                subject,
-                &PassportEvent::PassportInitiatedV1 {
-                    subject_kind: SubjectKind::Human,
+                holder,
+                &PassportEvent::PassportInitiatedV1(PassportInitiatedV1 {
+                    holder_kind: HolderKind::Human,
                     initiated_at: 1,
-                },
+                }),
             )
             .unwrap();
         store
             .append(
-                subject,
-                &PassportEvent::CustodianAssignedV1 {
+                holder,
+                &PassportEvent::CustodianAssignedV1(CustodianAssignedV1 {
                     custodian: vec![9; 32],
                     assigned_at: 2,
                     reason: None,
-                },
+                }),
             )
             .unwrap();
 
-        let loaded = store.load(subject).unwrap();
+        let loaded = store.load(holder).unwrap();
         assert_eq!(loaded.len(), 2);
-        assert!(matches!(loaded[0], PassportEvent::PassportInitiatedV1 { .. }));
-        assert!(matches!(loaded[1], PassportEvent::CustodianAssignedV1 { .. }));
+        assert!(matches!(loaded[0], PassportEvent::PassportInitiatedV1(_)));
+        assert!(matches!(loaded[1], PassportEvent::CustodianAssignedV1(_)));
     }
 
     #[test]
-    fn streams_for_different_subjects_stay_isolated() {
+    fn streams_for_different_holders_stay_isolated() {
         let mut store = Store::open_in_memory().unwrap();
         let a = Uuid::now_v7();
         let b = Uuid::now_v7();
@@ -153,10 +157,10 @@ mod tests {
         store
             .append(
                 a,
-                &PassportEvent::PassportInitiatedV1 {
-                    subject_kind: SubjectKind::Human,
+                &PassportEvent::PassportInitiatedV1(PassportInitiatedV1 {
+                    holder_kind: HolderKind::Human,
                     initiated_at: 1,
-                },
+                }),
             )
             .unwrap();
 
