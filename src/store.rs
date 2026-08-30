@@ -79,7 +79,7 @@ impl Store {
             params![holder_id.as_bytes().to_vec()],
             |row| row.get(0),
         )?;
-        let payload = macula_rust_sdk::cbor::encode(&codec::encode_event(event))
+        let payload = macula_rust::cbor::encode(&codec::encode_event(event))
             .map_err(|e| StoreError::Codec(CodecError(e.to_string())))?;
         tx.execute(
             "INSERT INTO events (holder_id, seq, event_kind, payload) VALUES (?1, ?2, ?3, ?4)",
@@ -101,7 +101,7 @@ impl Store {
         let mut events = Vec::new();
         for row in rows {
             let payload = row?;
-            let value = macula_rust_sdk::cbor::decode(&payload)
+            let value = macula_rust::cbor::decode(&payload)
                 .map_err(|e| StoreError::Codec(CodecError(e.to_string())))?;
             events.push(codec::decode_event(&value)?);
         }

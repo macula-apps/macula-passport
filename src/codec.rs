@@ -2,10 +2,10 @@
 //! CBOR. `Claim`, `Grant`, `BiometricSample`, `PassportEvent` — none of
 //! them have a `to_cbor`/`from_cbor` method of their own; they don't
 //! know or care how they're persisted. This module is the sole adapter
-//! between them and [`macula_rust_sdk::cbor::Value`], the same role
+//! between them and [`macula_rust::cbor::Value`], the same role
 //! `store` plays for SQLite specifically.
 
-use macula_rust_sdk::cbor::Value;
+use macula_rust::cbor::Value;
 use uuid::Uuid;
 
 use crate::biometric_sample::BiometricSample;
@@ -355,8 +355,8 @@ mod tests {
     use super::*;
 
     fn roundtrip(event: PassportEvent) {
-        let bytes = macula_rust_sdk::cbor::encode(&encode_event(&event)).expect("encode");
-        let decoded_value = macula_rust_sdk::cbor::decode(&bytes).expect("decode");
+        let bytes = macula_rust::cbor::encode(&encode_event(&event)).expect("encode");
+        let decoded_value = macula_rust::cbor::decode(&bytes).expect("decode");
         let decoded = decode_event(&decoded_value).expect("decode_event");
         assert_eq!(event, decoded, "round-trip mismatch for {}", event_kind(&event));
     }

@@ -24,7 +24,7 @@ an actual Kotlin/Swift app consuming these bindings. See "Built so far" and
   itself still says "subject" — this repo corrected it to `holder`, since
   that's what a passport itself calls the person it's about; the Erlang
   doc hasn't been touched.)
-- [`macula-io/macula-rust-sdk`](https://github.com/macula-io/macula-rust-sdk) —
+- [`macula-io/macula-rust`](https://github.com/macula-io/macula-rust) —
   the mesh client this app builds on, and the reference for the
   Rust-core-plus-UniFFI-bindings pattern this app follows to reach iOS and
   Android from one implementation.
@@ -65,7 +65,7 @@ src/
 Domain types never have `to_cbor`/`from_cbor` methods on themselves — a
 holder's dossier has no business knowing what serialization format it's
 stored in. `codec.rs` is the sole adapter between domain types and
-`macula_rust_sdk::cbor::Value`; `store.rs` is the sole adapter to SQLite.
+`macula_rust::cbor::Value`; `store.rs` is the sole adapter to SQLite.
 This mirrors the same domain/infrastructure and vertical-slicing rules
 already applied throughout the Erlang side of this workspace — general
 principles, not Erlang-specific ones, corrected here 2026-08-29 after an
@@ -137,7 +137,7 @@ doing load→replay→`handler::handle`→append as a single call — the mobile
 side never manually replays. All decision logic stays in `macula-passport`;
 nothing in `macula-passport-ffi` decides anything, it only marshals `Command` in
 and `PassportEvent`/`DomainError` out. Structure mirrors
-`macula-rust-sdk-ffi`'s relationship to `macula-rust-sdk` (a separate
+`macula-rust-ffi`'s relationship to `macula-rust` (a separate
 crate, so the core stays UniFFI-free); `FfiValue` mirrors that crate's
 own restricted CBOR-value mirror (`Null`/`Int`/`Bytes`/`Text`/`Float` — no
 `List`/`Map` yet, same limitation, not independently reinvented).
@@ -150,7 +150,7 @@ variant, and real `uniffi-bindgen generate` runs for both `--language
 kotlin` and `--language swift` — confirming the full API surface actually
 codegens with correct types, not just that the Rust side compiles. No
 Kotlin/Swift/mobile toolchain exists in this dev environment (same
-constraint `macula-rust-sdk-ffi` has), so this is the same verification
+constraint `macula-rust-ffi` has), so this is the same verification
 bar that repo's own CI settles for. `cargo test --workspace` and `cargo
 clippy --workspace --all-targets` both clean throughout.
 
@@ -168,5 +168,5 @@ still a real design decision, not yet made.
 ## License
 
 Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) at
-your option, matching `macula-rust-sdk`'s convention (standard for the
+your option, matching `macula-rust`'s convention (standard for the
 Rust crate ecosystem this app's core is built in).

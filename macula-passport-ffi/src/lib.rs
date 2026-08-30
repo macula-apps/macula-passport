@@ -4,8 +4,8 @@
 //! `macula_passport::handler::handle`; nothing here decides anything, it
 //! only marshals `Command` in and `PassportEvent`/`DomainError` out.
 //!
-//! Structure mirrors `macula-rust-sdk-ffi`'s relationship to
-//! `macula-rust-sdk` (itself following `iroh-ffi`'s relationship to
+//! Structure mirrors `macula-rust-ffi`'s relationship to
+//! `macula-rust` (itself following `iroh-ffi`'s relationship to
 //! `iroh`): a separate crate depending on `macula-passport`, so that
 //! crate carries zero UniFFI dependency and stays just as usable from
 //! plain Rust as it was before this crate existed. It also mirrors
@@ -16,18 +16,18 @@
 //! `#[uniffi::export]` collects them crate-wide regardless of which
 //! file declared them, so nothing forces this crate into one flat file.
 //!
-//! [`value::FfiValue`] mirrors `macula-rust-sdk-ffi`'s own `FfiValue` —
+//! [`value::FfiValue`] mirrors `macula-rust-ffi`'s own `FfiValue` —
 //! same `Null`/`Int`/`Bytes`/`Text`/`Float` variants, same missing
 //! `List`/`Map` (recursive UniFFI enums, deferred there too — not
 //! redefined independently here, just carrying the same limitation
 //! since [`macula_passport::claim::Claim::value`] is the same
-//! [`macula_rust_sdk::cbor::Value`] type). Not reusing that crate's type
-//! directly: pulling in `macula-rust-sdk-ffi` here would drag in its
+//! [`macula_rust::cbor::Value`] type). Not reusing that crate's type
+//! directly: pulling in `macula-rust-ffi` here would drag in its
 //! tokio/async-trait dependencies for zero benefit, since nothing in
 //! this crate is async — every [`dossier::FfiPassport`] method is a
 //! synchronous SQLite read/replay/decide/append, including
 //! `disclose_data`, which only *decides* here; a mobile app wires the
-//! actual inbound mesh CALL itself (via `macula-rust-sdk-ffi`'s own
+//! actual inbound mesh CALL itself (via `macula-rust-ffi`'s own
 //! `FfiCallHandler`) and calls into `disclose_data` from inside that
 //! handler — this crate doesn't know the mesh exists.
 //!

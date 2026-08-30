@@ -21,4 +21,4 @@ all = { level = "deny", priority = -1 }
 [dependencies]
 rusqlite = { version = "0.40", features = ["bundled"] }
 uuid = { version = "1", features = ["v7"] }
-macula-rust-sdk = { git = "https://github.com/macula-io/macula-rust-sdk", branch = "master" }
+macula-rust = { git = "https://github.com/macula-io/macula-rust", branch = "master" }

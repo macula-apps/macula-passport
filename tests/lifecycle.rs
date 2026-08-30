@@ -2,7 +2,7 @@
 //! disclosure — through the real `Store` + `Dossier::replay` +
 //! `handler::handle` path, not just unit-level pieces in isolation.
 
-use macula_rust_sdk::cbor::Value;
+use macula_rust::cbor::Value;
 use uuid::Uuid;
 
 use macula_passport::claim::Claim;

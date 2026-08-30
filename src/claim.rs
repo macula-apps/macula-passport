@@ -1,4 +1,4 @@
-use macula_rust_sdk::cbor::Value;
+use macula_rust::cbor::Value;
 
 /// A disclosable fact about the holder — an identity document, a health
 /// observation, or anything else added later under a new `claim_type`.
@@ -11,7 +11,7 @@ use macula_rust_sdk::cbor::Value;
 /// core schema concern. The core only needs to know a claim's shape, not
 /// its contents.
 ///
-/// `value` reuses [`macula_rust_sdk::cbor::Value`] rather than a
+/// `value` reuses [`macula_rust::cbor::Value`] rather than a
 /// parallel semi-structured type, since a disclosed claim's value is
 /// exactly what ends up as a `disclose_data` RPC reply payload — no
 /// re-encoding step at that boundary. This is a data-shape choice, not a

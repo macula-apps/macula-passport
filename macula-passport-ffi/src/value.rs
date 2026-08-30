@@ -1,6 +1,6 @@
 use crate::FfiError;
 
-/// A restricted mirror of [`macula_rust_sdk::cbor::Value`] — see the
+/// A restricted mirror of [`macula_rust::cbor::Value`] — see the
 /// crate root's module doc for why `List`/`Map` are missing.
 #[derive(uniffi::Enum, Debug, Clone, PartialEq)]
 pub enum FfiValue {
@@ -11,9 +11,9 @@ pub enum FfiValue {
     Float(f64),
 }
 
-impl From<FfiValue> for macula_rust_sdk::cbor::Value {
+impl From<FfiValue> for macula_rust::cbor::Value {
     fn from(v: FfiValue) -> Self {
-        use macula_rust_sdk::cbor::Value;
+        use macula_rust::cbor::Value;
         match v {
             FfiValue::Null => Value::Null,
             FfiValue::Int(n) => Value::Int(n as i128),
@@ -24,11 +24,11 @@ impl From<FfiValue> for macula_rust_sdk::cbor::Value {
     }
 }
 
-impl TryFrom<macula_rust_sdk::cbor::Value> for FfiValue {
+impl TryFrom<macula_rust::cbor::Value> for FfiValue {
     type Error = FfiError;
 
-    fn try_from(v: macula_rust_sdk::cbor::Value) -> Result<Self, FfiError> {
-        use macula_rust_sdk::cbor::Value;
+    fn try_from(v: macula_rust::cbor::Value) -> Result<Self, FfiError> {
+        use macula_rust::cbor::Value;
         match v {
             Value::Null => Ok(FfiValue::Null),
             Value::Int(n) => i64::try_from(n).map(FfiValue::Int).map_err(|_| {

@@ -25,7 +25,7 @@ path = "uniffi-bindgen.rs"
 
 [dependencies]
 macula-passport = { path = ".." }
-macula-rust-sdk = { git = "https://github.com/macula-io/macula-rust-sdk", branch = "master" }
+macula-rust = { git = "https://github.com/macula-io/macula-rust", branch = "master" }
 uuid = { version = "1", features = ["v7"] }
 uniffi = { version = "0.32", features = ["cli"] }
 thiserror = "2"
