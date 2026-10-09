@@ -1,0 +1,85 @@
+# CI: formatting, lints, tests, and the Kotlin/Swift bindings (#1).
+#
+# This exists so a change that breaks the dossier core, its UniFFI layer or the
+# bindings the mobile apps build on is caught on its push, before the apps do.
+# GitHub-hosted runners: the repo is public. Actions are pinned by commit.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: clippy (deny warnings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          components: clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: cargo test --workspace --locked
+
+  bindings:
+    # The full API surface must codegen for both mobile languages from the
+    # built library, not only compile on the Rust side.
+    name: uniffi bindings (kotlin + swift codegen)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: cargo build -p macula-passport-ffi --release --locked
+      - run: |
+          cargo run -p macula-passport-ffi --release --locked --bin uniffi-bindgen -- generate \
+            --library target/release/libmacula_passport_ffi.so \
+            --language kotlin --out-dir bindings/kotlin --no-format
+      - run: |
+          cargo run -p macula-passport-ffi --release --locked --bin uniffi-bindgen -- generate \
+            --library target/release/libmacula_passport_ffi.so \
+            --language swift --out-dir bindings/swift --no-format
+      - name: Both languages generated the passport API
+        run: |
+          grep -rq "FfiPassport" bindings/kotlin
+          grep -rq "FfiPassport" bindings/swift

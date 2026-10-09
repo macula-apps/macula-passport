@@ -156,9 +156,10 @@ clippy --workspace --all-targets` both clean throughout.
 
 ## Still open
 
-No CI workflow yet (the sibling SDK repos all run a bindgen codegen smoke
-test in GitHub Actions; this repo doesn't have Actions configured at all)
-— flagging as the natural next piece, not built unprompted. No actual
+CI (`.github/workflows/ci.yml`, GitHub-hosted) runs on every push and pull
+request: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test
+--workspace`, and a bindings check that builds the FFI library and generates
+the Kotlin and Swift bindings from it. No actual
 Kotlin/Swift consumer app exists — the bindings are verified to generate
 correctly, not run against a real mobile build. Field-level schemas
 beyond the claims-model shape itself (which jurisdictions' documents,
