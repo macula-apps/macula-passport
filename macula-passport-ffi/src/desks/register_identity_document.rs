@@ -12,10 +12,12 @@ impl FfiPassport {
         claim: FfiClaim,
         acting_as: Vec<u8>,
     ) -> Result<(), FfiError> {
-        self.apply(Command::RegisterIdentityDocumentV1(RegisterIdentityDocumentV1 {
-            claim: claim.into(),
-            acting_as,
-        }))?;
+        self.apply(Command::RegisterIdentityDocumentV1(
+            RegisterIdentityDocumentV1 {
+                claim: claim.into(),
+                acting_as,
+            },
+        ))?;
         Ok(())
     }
 }

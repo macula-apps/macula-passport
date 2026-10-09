@@ -12,7 +12,11 @@ impl FfiPassport {
         reason: Option<String>,
         at: i64,
     ) -> Result<(), FfiError> {
-        self.apply(Command::AssignCustodianV1(AssignCustodianV1 { custodian, reason, at }))?;
+        self.apply(Command::AssignCustodianV1(AssignCustodianV1 {
+            custodian,
+            reason,
+            at,
+        }))?;
         Ok(())
     }
 }

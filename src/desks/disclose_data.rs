@@ -47,7 +47,11 @@ pub enum DiscloseDataOutcome {
 /// itself worth auditing" (design doc §3), so it's recorded either way,
 /// not silently dropped the way an error would be.
 pub fn decide_disclosure(state: &Dossier, cmd: DiscloseDataV1) -> DiscloseDataOutcome {
-    let DiscloseDataV1 { requester, claim_type, at } = cmd;
+    let DiscloseDataV1 {
+        requester,
+        claim_type,
+        at,
+    } = cmd;
 
     let matching = state
         .active_grants()
@@ -68,11 +72,21 @@ pub fn decide_disclosure(state: &Dossier, cmd: DiscloseDataV1) -> DiscloseDataOu
             denied_at: at,
         }),
         None => {
-            let ever_granted =
-                state.grants.iter().any(|g| g.requester == requester && g.covers(&claim_type));
-            let reason =
-                if ever_granted { DenialReason::GrantRevoked } else { DenialReason::NoMatchingGrant };
-            DiscloseDataOutcome::Denied(DataAccessDeniedV1 { requester, claim_type, reason, denied_at: at })
+            let ever_granted = state
+                .grants
+                .iter()
+                .any(|g| g.requester == requester && g.covers(&claim_type));
+            let reason = if ever_granted {
+                DenialReason::GrantRevoked
+            } else {
+                DenialReason::NoMatchingGrant
+            };
+            DiscloseDataOutcome::Denied(DataAccessDeniedV1 {
+                requester,
+                claim_type,
+                reason,
+                denied_at: at,
+            })
         }
     }
 }

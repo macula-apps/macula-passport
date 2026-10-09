@@ -18,7 +18,10 @@ fn key(b: u8) -> Vec<u8> {
 
 fn temp_db_path(name: &str) -> String {
     std::env::temp_dir()
-        .join(format!("macula-passport-ffi-test-{name}-{}.sqlite", std::process::id()))
+        .join(format!(
+            "macula-passport-ffi-test-{name}-{}.sqlite",
+            std::process::id()
+        ))
         .to_string_lossy()
         .to_string()
 }
@@ -53,11 +56,17 @@ fn disclosure_lifecycle_through_the_ffi_object() {
 
     // No grant yet: denied, not an error.
     let denied = passport
-        .disclose_data(requester.clone(), "identity.passport.number".to_string(), 150)
+        .disclose_data(
+            requester.clone(),
+            "identity.passport.number".to_string(),
+            150,
+        )
         .unwrap();
     assert!(matches!(
         denied,
-        FfiDisclosureOutcome::Denied { reason: FfiDenialReason::NoMatchingGrant }
+        FfiDisclosureOutcome::Denied {
+            reason: FfiDenialReason::NoMatchingGrant
+        }
     ));
 
     let grant_id = passport
@@ -73,7 +82,11 @@ fn disclosure_lifecycle_through_the_ffi_object() {
     assert_eq!(passport.list_active_grants().unwrap().len(), 1);
 
     let disclosed = passport
-        .disclose_data(requester.clone(), "identity.passport.number".to_string(), 200)
+        .disclose_data(
+            requester.clone(),
+            "identity.passport.number".to_string(),
+            200,
+        )
         .unwrap();
     match disclosed {
         FfiDisclosureOutcome::Disclosed { claim } => {
@@ -82,7 +95,9 @@ fn disclosure_lifecycle_through_the_ffi_object() {
         other => panic!("expected Disclosed, got {other:?}"),
     }
 
-    passport.revoke_data_access(grant_id, holder_key, 300).unwrap();
+    passport
+        .revoke_data_access(grant_id, holder_key, 300)
+        .unwrap();
     assert_eq!(passport.list_active_grants().unwrap().len(), 0);
 
     let denied_again = passport
@@ -90,7 +105,9 @@ fn disclosure_lifecycle_through_the_ffi_object() {
         .unwrap();
     assert!(matches!(
         denied_again,
-        FfiDisclosureOutcome::Denied { reason: FfiDenialReason::GrantRevoked }
+        FfiDisclosureOutcome::Denied {
+            reason: FfiDenialReason::GrantRevoked
+        }
     ));
 }
 
@@ -100,6 +117,14 @@ fn rejects_a_grant_id_of_the_wrong_length() {
     let passport = FfiPassport::open(path, new_holder_id()).unwrap();
     passport.initiate(FfiHolderKind::Human, 0).unwrap();
 
-    let err = passport.revoke_data_access(vec![1, 2, 3], key(1), 1).unwrap_err();
-    assert!(matches!(err, FfiError::WrongByteLength { expected: 16, actual: 3 }));
+    let err = passport
+        .revoke_data_access(vec![1, 2, 3], key(1), 1)
+        .unwrap_err();
+    assert!(matches!(
+        err,
+        FfiError::WrongByteLength {
+            expected: 16,
+            actual: 3
+        }
+    ));
 }

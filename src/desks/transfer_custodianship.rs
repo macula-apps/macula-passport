@@ -24,6 +24,13 @@ pub fn maybe_transfer_custodianship(
     state: &Dossier,
     cmd: TransferCustodianshipV1,
 ) -> Result<CustodianshipTransferredV1, DomainError> {
-    let from = state.custodian.clone().ok_or(DomainError::NoActiveCustodian)?;
-    Ok(CustodianshipTransferredV1 { from, to: cmd.to, transferred_at: cmd.at })
+    let from = state
+        .custodian
+        .clone()
+        .ok_or(DomainError::NoActiveCustodian)?;
+    Ok(CustodianshipTransferredV1 {
+        from,
+        to: cmd.to,
+        transferred_at: cmd.at,
+    })
 }

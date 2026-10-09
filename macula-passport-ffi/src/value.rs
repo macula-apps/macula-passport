@@ -31,9 +31,13 @@ impl TryFrom<macula_rust::cbor::Value> for FfiValue {
         use macula_rust::cbor::Value;
         match v {
             Value::Null => Ok(FfiValue::Null),
-            Value::Int(n) => i64::try_from(n).map(FfiValue::Int).map_err(|_| {
-                FfiError::UnrepresentableValue { reason: format!("integer {n} is outside i64 range") }
-            }),
+            Value::Int(n) => {
+                i64::try_from(n)
+                    .map(FfiValue::Int)
+                    .map_err(|_| FfiError::UnrepresentableValue {
+                        reason: format!("integer {n} is outside i64 range"),
+                    })
+            }
             Value::Bytes(b) => Ok(FfiValue::Bytes(b)),
             Value::Text(t) => Ok(FfiValue::Text(t)),
             Value::Float(f) => Ok(FfiValue::Float(f)),

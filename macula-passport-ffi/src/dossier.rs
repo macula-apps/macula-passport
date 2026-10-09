@@ -60,11 +60,20 @@ impl FfiPassport {
     }
 
     pub fn list_claims(&self) -> Result<Vec<FfiClaim>, FfiError> {
-        self.state()?.claims.into_iter().map(FfiClaim::try_from).collect()
+        self.state()?
+            .claims
+            .into_iter()
+            .map(FfiClaim::try_from)
+            .collect()
     }
 
     pub fn list_biometric_samples(&self) -> Result<Vec<FfiBiometricSample>, FfiError> {
-        Ok(self.state()?.biometric_samples.into_iter().map(FfiBiometricSample::from).collect())
+        Ok(self
+            .state()?
+            .biometric_samples
+            .into_iter()
+            .map(FfiBiometricSample::from)
+            .collect())
     }
 
     pub fn list_active_grants(&self) -> Result<Vec<FfiGrant>, FfiError> {

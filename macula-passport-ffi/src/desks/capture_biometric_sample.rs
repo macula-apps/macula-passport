@@ -12,10 +12,12 @@ impl FfiPassport {
         sample: FfiBiometricSample,
         acting_as: Vec<u8>,
     ) -> Result<(), FfiError> {
-        self.apply(Command::CaptureBiometricSampleV1(CaptureBiometricSampleV1 {
-            sample: sample.into(),
-            acting_as,
-        }))?;
+        self.apply(Command::CaptureBiometricSampleV1(
+            CaptureBiometricSampleV1 {
+                sample: sample.into(),
+                acting_as,
+            },
+        ))?;
         Ok(())
     }
 }

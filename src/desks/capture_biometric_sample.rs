@@ -25,5 +25,8 @@ pub fn maybe_capture_biometric_sample(
     if !state.is_initiated() {
         return Err(DomainError::NotYetInitiated);
     }
-    Ok(BiometricSampleCapturedV1 { sample: cmd.sample, captured_by: cmd.acting_as })
+    Ok(BiometricSampleCapturedV1 {
+        sample: cmd.sample,
+        captured_by: cmd.acting_as,
+    })
 }

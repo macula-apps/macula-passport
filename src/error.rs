@@ -28,7 +28,9 @@ impl std::fmt::Display for DomainError {
         let s = match self {
             DomainError::AlreadyInitiated => "passport already initiated",
             DomainError::NotYetInitiated => "passport not yet initiated",
-            DomainError::CustodianAlreadyAssigned => "a custodian is already assigned; use transfer, not assign",
+            DomainError::CustodianAlreadyAssigned => {
+                "a custodian is already assigned; use transfer, not assign"
+            }
             DomainError::NoActiveCustodian => "no active custodian to transfer from",
             DomainError::GrantNotFound => "no such grant",
             DomainError::GrantAlreadyRevoked => "grant already revoked",

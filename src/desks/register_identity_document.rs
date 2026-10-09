@@ -25,5 +25,8 @@ pub fn maybe_register_identity_document(
     if !state.is_initiated() {
         return Err(DomainError::NotYetInitiated);
     }
-    Ok(IdentityDocumentRegisteredV1 { claim: cmd.claim, registered_by: cmd.acting_as })
+    Ok(IdentityDocumentRegisteredV1 {
+        claim: cmd.claim,
+        registered_by: cmd.acting_as,
+    })
 }

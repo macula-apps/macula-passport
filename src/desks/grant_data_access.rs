@@ -37,5 +37,8 @@ pub fn maybe_grant_data_access(
         purpose: cmd.purpose,
         expires_at: cmd.expires_at,
     };
-    Ok(DataAccessGrantedV1 { grant, granted_by: cmd.acting_as })
+    Ok(DataAccessGrantedV1 {
+        grant,
+        granted_by: cmd.acting_as,
+    })
 }

@@ -34,17 +34,20 @@ impl FfiPassport {
         match event {
             PassportEvent::DataDisclosedV1(_) => {
                 let state = self.state()?;
-                let claim = state.current_claim(&claim_type, at).cloned().ok_or_else(|| {
-                    FfiError::Store {
+                let claim = state
+                    .current_claim(&claim_type, at)
+                    .cloned()
+                    .ok_or_else(|| FfiError::Store {
                         reason: "disclosed but no current claim found -- inconsistent state"
                             .to_string(),
-                    }
-                })?;
-                Ok(FfiDisclosureOutcome::Disclosed { claim: FfiClaim::try_from(claim)? })
+                    })?;
+                Ok(FfiDisclosureOutcome::Disclosed {
+                    claim: FfiClaim::try_from(claim)?,
+                })
             }
-            PassportEvent::DataAccessDeniedV1(e) => {
-                Ok(FfiDisclosureOutcome::Denied { reason: e.reason.into() })
-            }
+            PassportEvent::DataAccessDeniedV1(e) => Ok(FfiDisclosureOutcome::Denied {
+                reason: e.reason.into(),
+            }),
             _ => unreachable!(
                 "apply(DiscloseDataV1) always returns DataDisclosedV1 or DataAccessDeniedV1"
             ),

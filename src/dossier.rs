@@ -122,7 +122,9 @@ impl Dossier {
     /// decision time against "now" — "active" here means "not revoked",
     /// a fact of history; "expired" depends on when you ask.
     pub fn active_grants(&self) -> impl Iterator<Item = &Grant> {
-        self.grants.iter().filter(|g| !self.revoked_grant_ids.contains(&g.id))
+        self.grants
+            .iter()
+            .filter(|g| !self.revoked_grant_ids.contains(&g.id))
     }
 
     pub fn grant_by_id(&self, id: Uuid) -> Option<&Grant> {

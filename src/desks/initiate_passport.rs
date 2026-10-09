@@ -24,5 +24,8 @@ pub fn maybe_initiate_passport(
     if state.is_initiated() {
         return Err(DomainError::AlreadyInitiated);
     }
-    Ok(PassportInitiatedV1 { holder_kind: cmd.holder_kind, initiated_at: cmd.at })
+    Ok(PassportInitiatedV1 {
+        holder_kind: cmd.holder_kind,
+        initiated_at: cmd.at,
+    })
 }

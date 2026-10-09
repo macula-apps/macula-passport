@@ -31,5 +31,9 @@ pub fn maybe_assign_custodian(
     if state.custodian.is_some() {
         return Err(DomainError::CustodianAlreadyAssigned);
     }
-    Ok(CustodianAssignedV1 { custodian: cmd.custodian, assigned_at: cmd.at, reason: cmd.reason })
+    Ok(CustodianAssignedV1 {
+        custodian: cmd.custodian,
+        assigned_at: cmd.at,
+        reason: cmd.reason,
+    })
 }

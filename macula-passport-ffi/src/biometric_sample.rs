@@ -9,12 +9,20 @@ pub struct FfiBiometricSample {
 
 impl From<FfiBiometricSample> for BiometricSample {
     fn from(s: FfiBiometricSample) -> Self {
-        BiometricSample { modality: s.modality, template: s.template, captured_at: s.captured_at }
+        BiometricSample {
+            modality: s.modality,
+            template: s.template,
+            captured_at: s.captured_at,
+        }
     }
 }
 
 impl From<BiometricSample> for FfiBiometricSample {
     fn from(s: BiometricSample) -> Self {
-        FfiBiometricSample { modality: s.modality, template: s.template, captured_at: s.captured_at }
+        FfiBiometricSample {
+            modality: s.modality,
+            template: s.template,
+            captured_at: s.captured_at,
+        }
     }
 }

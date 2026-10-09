@@ -39,7 +39,10 @@ fn disclosure_lifecycle_grant_use_deny_revoke() {
     apply(
         &mut store,
         holder,
-        Command::InitiatePassportV1(InitiatePassportV1 { holder_kind: HolderKind::Human, at: 100 }),
+        Command::InitiatePassportV1(InitiatePassportV1 {
+            holder_kind: HolderKind::Human,
+            at: 100,
+        }),
     );
 
     apply(
@@ -108,7 +111,9 @@ fn disclosure_lifecycle_grant_use_deny_revoke() {
     store.append(holder, &disclosed).unwrap();
 
     // The disclosed value itself matches what was registered.
-    let disclosed_claim = state.current_claim("identity.passport.number", 200).unwrap();
+    let disclosed_claim = state
+        .current_claim("identity.passport.number", 200)
+        .unwrap();
     assert_eq!(disclosed_claim.value, Value::text("BE1234567"));
 
     // Revoke, then the same request must deny again, distinguishing
@@ -148,7 +153,10 @@ fn expired_grant_denies_with_the_right_reason() {
     apply(
         &mut store,
         holder,
-        Command::InitiatePassportV1(InitiatePassportV1 { holder_kind: HolderKind::Human, at: 0 }),
+        Command::InitiatePassportV1(InitiatePassportV1 {
+            holder_kind: HolderKind::Human,
+            at: 0,
+        }),
     );
     apply(
         &mut store,
@@ -186,13 +194,19 @@ fn cannot_initiate_twice_or_assign_a_second_custodian() {
     apply(
         &mut store,
         holder,
-        Command::InitiatePassportV1(InitiatePassportV1 { holder_kind: HolderKind::Animal, at: 0 }),
+        Command::InitiatePassportV1(InitiatePassportV1 {
+            holder_kind: HolderKind::Animal,
+            at: 0,
+        }),
     );
 
     let state = Dossier::replay(&store.load(holder).unwrap());
     assert!(handler::handle(
         &state,
-        Command::InitiatePassportV1(InitiatePassportV1 { holder_kind: HolderKind::Animal, at: 1 })
+        Command::InitiatePassportV1(InitiatePassportV1 {
+            holder_kind: HolderKind::Animal,
+            at: 1
+        })
     )
     .is_err());
 
@@ -208,7 +222,11 @@ fn cannot_initiate_twice_or_assign_a_second_custodian() {
     let state = Dossier::replay(&store.load(holder).unwrap());
     assert!(handler::handle(
         &state,
-        Command::AssignCustodianV1(AssignCustodianV1 { custodian: key(8), reason: None, at: 2 })
+        Command::AssignCustodianV1(AssignCustodianV1 {
+            custodian: key(8),
+            reason: None,
+            at: 2
+        })
     )
     .is_err());
 }

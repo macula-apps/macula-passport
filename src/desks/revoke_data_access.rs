@@ -31,5 +31,9 @@ pub fn maybe_revoke_data_access(
     if state.is_grant_revoked(cmd.grant_id) {
         return Err(DomainError::GrantAlreadyRevoked);
     }
-    Ok(DataAccessRevokedV1 { grant_id: cmd.grant_id, revoked_by: cmd.acting_as, revoked_at: cmd.at })
+    Ok(DataAccessRevokedV1 {
+        grant_id: cmd.grant_id,
+        revoked_by: cmd.acting_as,
+        revoked_at: cmd.at,
+    })
 }

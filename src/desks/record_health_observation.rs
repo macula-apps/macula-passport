@@ -26,5 +26,8 @@ pub fn maybe_record_health_observation(
     if !state.is_initiated() {
         return Err(DomainError::NotYetInitiated);
     }
-    Ok(HealthObservationRecordedV1 { claim: cmd.claim, recorded_by: cmd.acting_as })
+    Ok(HealthObservationRecordedV1 {
+        claim: cmd.claim,
+        recorded_by: cmd.acting_as,
+    })
 }

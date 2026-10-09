@@ -83,7 +83,12 @@ impl Store {
             .map_err(|e| StoreError::Codec(CodecError(e.to_string())))?;
         tx.execute(
             "INSERT INTO events (holder_id, seq, event_kind, payload) VALUES (?1, ?2, ?3, ?4)",
-            params![holder_id.as_bytes().to_vec(), next_seq, codec::event_kind(event), payload],
+            params![
+                holder_id.as_bytes().to_vec(),
+                next_seq,
+                codec::event_kind(event),
+                payload
+            ],
         )?;
         tx.commit()?;
         Ok(())

@@ -71,9 +71,9 @@ fn int(v: &Value, key: &str) -> Result<i64, CodecError> {
 
 fn opt_int(v: &Value, key: &str) -> Result<Option<i64>, CodecError> {
     match v.get(key) {
-        Some(Value::Int(i)) => {
-            Ok(Some(i64::try_from(*i).map_err(|_| wrong_type(key, "i64-range int"))?))
-        }
+        Some(Value::Int(i)) => Ok(Some(
+            i64::try_from(*i).map_err(|_| wrong_type(key, "i64-range int"))?,
+        )),
         Some(Value::Null) | None => Ok(None),
         Some(_) => Err(wrong_type(key, "int or null")),
     }
@@ -146,11 +146,16 @@ pub fn encode_claim(c: &Claim) -> Value {
     Value::Map(vec![])
         .with_field("claim_type", Value::text(&c.claim_type))
         .with_field("value", c.value.clone())
-        .with_field("issuer", c.issuer.as_deref().map(Value::text).unwrap_or(Value::Null))
+        .with_field(
+            "issuer",
+            c.issuer.as_deref().map(Value::text).unwrap_or(Value::Null),
+        )
         .with_field("captured_at", Value::Int(c.captured_at as i128))
         .with_field(
             "expires_at",
-            c.expires_at.map(|t| Value::Int(t as i128)).unwrap_or(Value::Null),
+            c.expires_at
+                .map(|t| Value::Int(t as i128))
+                .unwrap_or(Value::Null),
         )
 }
 
@@ -187,7 +192,9 @@ pub fn encode_grant(g: &Grant) -> Value {
         .with_field("purpose", Value::text(&g.purpose))
         .with_field(
             "expires_at",
-            g.expires_at.map(|t| Value::Int(t as i128)).unwrap_or(Value::Null),
+            g.expires_at
+                .map(|t| Value::Int(t as i128))
+                .unwrap_or(Value::Null),
         )
 }
 
@@ -233,13 +240,18 @@ pub fn encode_event(event: &PassportEvent) -> Value {
         PassportEvent::CustodianAssignedV1(e) => map
             .with_field("custodian", Value::Bytes(e.custodian.clone()))
             .with_field("assigned_at", Value::Int(e.assigned_at as i128))
-            .with_field("reason", e.reason.as_deref().map(Value::text).unwrap_or(Value::Null)),
+            .with_field(
+                "reason",
+                e.reason.as_deref().map(Value::text).unwrap_or(Value::Null),
+            ),
 
         PassportEvent::CustodianshipTransferredV1(e) => map
             .with_field("from", Value::Bytes(e.from.clone()))
             .with_field(
                 "to",
-                e.to.as_ref().map(|t| Value::Bytes(t.clone())).unwrap_or(Value::Null),
+                e.to.as_ref()
+                    .map(|t| Value::Bytes(t.clone()))
+                    .unwrap_or(Value::Null),
             )
             .with_field("transferred_at", Value::Int(e.transferred_at as i128)),
 
@@ -358,7 +370,12 @@ mod tests {
         let bytes = macula_rust::cbor::encode(&encode_event(&event)).expect("encode");
         let decoded_value = macula_rust::cbor::decode(&bytes).expect("decode");
         let decoded = decode_event(&decoded_value).expect("decode_event");
-        assert_eq!(event, decoded, "round-trip mismatch for {}", event_kind(&event));
+        assert_eq!(
+            event,
+            decoded,
+            "round-trip mismatch for {}",
+            event_kind(&event)
+        );
     }
 
     #[test]
@@ -402,28 +419,38 @@ mod tests {
             assigned_at: 2,
             reason: None,
         }));
-        roundtrip(PassportEvent::CustodianshipTransferredV1(CustodianshipTransferredV1 {
-            from: key(1),
-            to: Some(key(3)),
-            transferred_at: 3,
-        }));
-        roundtrip(PassportEvent::CustodianshipTransferredV1(CustodianshipTransferredV1 {
-            from: key(1),
-            to: None,
-            transferred_at: 3,
-        }));
-        roundtrip(PassportEvent::IdentityDocumentRegisteredV1(IdentityDocumentRegisteredV1 {
-            claim: claim.clone(),
-            registered_by: key(1),
-        }));
-        roundtrip(PassportEvent::BiometricSampleCapturedV1(BiometricSampleCapturedV1 {
-            sample: sample.clone(),
-            captured_by: key(1),
-        }));
-        roundtrip(PassportEvent::HealthObservationRecordedV1(HealthObservationRecordedV1 {
-            claim: claim.clone(),
-            recorded_by: key(1),
-        }));
+        roundtrip(PassportEvent::CustodianshipTransferredV1(
+            CustodianshipTransferredV1 {
+                from: key(1),
+                to: Some(key(3)),
+                transferred_at: 3,
+            },
+        ));
+        roundtrip(PassportEvent::CustodianshipTransferredV1(
+            CustodianshipTransferredV1 {
+                from: key(1),
+                to: None,
+                transferred_at: 3,
+            },
+        ));
+        roundtrip(PassportEvent::IdentityDocumentRegisteredV1(
+            IdentityDocumentRegisteredV1 {
+                claim: claim.clone(),
+                registered_by: key(1),
+            },
+        ));
+        roundtrip(PassportEvent::BiometricSampleCapturedV1(
+            BiometricSampleCapturedV1 {
+                sample: sample.clone(),
+                captured_by: key(1),
+            },
+        ));
+        roundtrip(PassportEvent::HealthObservationRecordedV1(
+            HealthObservationRecordedV1 {
+                claim: claim.clone(),
+                recorded_by: key(1),
+            },
+        ));
         roundtrip(PassportEvent::DataAccessGrantedV1(DataAccessGrantedV1 {
             grant: grant.clone(),
             granted_by: key(1),

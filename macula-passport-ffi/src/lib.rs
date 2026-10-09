@@ -72,13 +72,17 @@ pub enum FfiError {
 
 impl From<macula_passport::error::DomainError> for FfiError {
     fn from(e: macula_passport::error::DomainError) -> Self {
-        FfiError::Domain { reason: e.to_string() }
+        FfiError::Domain {
+            reason: e.to_string(),
+        }
     }
 }
 
 impl From<macula_passport::store::StoreError> for FfiError {
     fn from(e: macula_passport::store::StoreError) -> Self {
-        FfiError::Store { reason: e.to_string() }
+        FfiError::Store {
+            reason: e.to_string(),
+        }
     }
 }
 
@@ -87,7 +91,10 @@ impl From<macula_passport::store::StoreError> for FfiError {
 /// the boundary as `Vec<u8>` and get validated here.
 pub(crate) fn to_uuid(bytes: Vec<u8>) -> Result<Uuid, FfiError> {
     let actual = bytes.len() as u32;
-    Uuid::from_slice(&bytes).map_err(|_| FfiError::WrongByteLength { expected: 16, actual })
+    Uuid::from_slice(&bytes).map_err(|_| FfiError::WrongByteLength {
+        expected: 16,
+        actual,
+    })
 }
 
 /// Generates a fresh holder id (a v7 UUID, same scheme `macula_passport`
