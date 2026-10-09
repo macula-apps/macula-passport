@@ -116,8 +116,10 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
+    use crate::claim::Claim;
     use crate::desks::assign_custodian::CustodianAssignedV1;
     use crate::desks::initiate_passport::PassportInitiatedV1;
+    use crate::desks::register_identity_document::IdentityDocumentRegisteredV1;
     use crate::holder::HolderKind;
 
     use super::*;
@@ -171,5 +173,53 @@ mod tests {
 
         assert_eq!(store.load(a).unwrap().len(), 1);
         assert_eq!(store.load(b).unwrap().len(), 0);
+    }
+
+    /// A value macula's decoding rule refuses (a NaN float, a byte-string
+    /// map key, an integer above 2^63-1) is refused by `cbor::encode`, so
+    /// no slip is appended that would leave the stream unloadable.
+    #[test]
+    fn a_slip_the_decoder_refuses_is_never_appended() {
+        use macula_rust::cbor::Value;
+
+        let unreadable = [
+            Value::Float(f64::NAN),
+            Value::Map(vec![(Value::Bytes(vec![1]), Value::Null)]),
+            Value::Int(i64::MAX as i128 + 1),
+        ];
+
+        for value in unreadable {
+            let mut store = Store::open_in_memory().unwrap();
+            let holder = Uuid::now_v7();
+            store
+                .append(
+                    holder,
+                    &PassportEvent::PassportInitiatedV1(PassportInitiatedV1 {
+                        holder_kind: HolderKind::Human,
+                        initiated_at: 1,
+                    }),
+                )
+                .unwrap();
+
+            let refused = store.append(
+                holder,
+                &PassportEvent::IdentityDocumentRegisteredV1(IdentityDocumentRegisteredV1 {
+                    claim: Claim {
+                        claim_type: "identity.passport.icao9303".to_string(),
+                        value: value.clone(),
+                        issuer: None,
+                        captured_at: 2,
+                        expires_at: None,
+                    },
+                    registered_by: vec![9; 32],
+                }),
+            );
+
+            assert!(
+                matches!(refused, Err(StoreError::Codec(_))),
+                "{value:?} was appended"
+            );
+            assert_eq!(store.load(holder).unwrap().len(), 1);
+        }
     }
 }
