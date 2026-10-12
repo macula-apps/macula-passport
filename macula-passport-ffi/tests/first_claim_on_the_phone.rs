@@ -24,7 +24,7 @@ fn app_files_dir(name: &str) -> std::path::PathBuf {
 
 fn identity_document(captured_at: i64) -> FfiClaim {
     FfiClaim {
-        claim_type: "identity_document.passport".into(),
+        claim_type: "identity.passport.number".into(),
         value: FfiValue::Text("XX0000001".into()),
         issuer: Some("ZZ".into()),
         captured_at,
@@ -66,6 +66,6 @@ fn a_claim_survives_the_app_being_killed_and_reopened() {
     assert!(reopened.is_initiated().unwrap());
     let claims = reopened.list_claims().unwrap();
     assert_eq!(claims.len(), 1);
-    assert_eq!(claims[0].claim_type, "identity_document.passport");
+    assert_eq!(claims[0].claim_type, "identity.passport.number");
     assert_eq!(claims[0].issuer.as_deref(), Some("ZZ"));
 }
