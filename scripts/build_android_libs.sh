@@ -15,8 +15,15 @@ out="${1:-$root/android/app/src/main}"
 min_sdk=26
 
 cd "$root"
-cargo ndk --platform "$min_sdk" -t arm64-v8a -t x86_64 -o "$out/jniLibs" \
+cargo ndk --platform "$min_sdk" -t arm64-v8a -t x86_64 \
     build -p macula-passport-ffi --release --locked
+# Only our library: cargo-ndk's -o would also copy keyring's Android cdylib,
+# which nothing links (the passport never uses the platform keystore).
+for pair in arm64-v8a:aarch64-linux-android x86_64:x86_64-linux-android; do
+    abi="${pair%%:*}"
+    mkdir -p "$out/jniLibs/$abi"
+    cp "target/${pair#*:}/release/libmacula_passport_ffi.so" "$out/jniLibs/$abi/"
+done
 cargo run -p macula-passport-ffi --release --locked --bin uniffi-bindgen -- generate \
     --library target/aarch64-linux-android/release/libmacula_passport_ffi.so \
     --language kotlin --out-dir "$out/kotlin" --no-format
