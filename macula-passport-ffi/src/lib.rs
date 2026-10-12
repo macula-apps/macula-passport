@@ -48,6 +48,7 @@ pub mod biometric_sample;
 pub mod claim;
 pub mod denial_reason;
 pub mod desks;
+pub mod device_identity;
 pub mod dossier;
 pub mod grant;
 pub mod holder;
@@ -66,6 +67,10 @@ pub enum FfiError {
     Store { reason: String },
     #[error("a value could not cross the FFI boundary: {reason}")]
     UnrepresentableValue { reason: String },
+    /// The device's identity key could not be created or loaded (see
+    /// [`device_identity::device_mesh_key`]).
+    #[error("device identity: {reason}")]
+    Identity { reason: String },
     #[error("expected exactly {expected} bytes, got {actual}")]
     WrongByteLength { expected: u32, actual: u32 },
 }

@@ -142,6 +142,20 @@ crate, so the core stays UniFFI-free); `FfiValue` mirrors that crate's
 own restricted CBOR-value mirror (`Null`/`Int`/`Bytes`/`Text`/`Float` — no
 `List`/`Map` yet, same limitation, not independently reinvented).
 
+**Device identity and the Android libraries.** `deviceMeshKey(identityDir)`
+returns the public key a holder acts as on their phone (`actingAs` on every
+claim desk). On the first call it creates a macula-rust identity on the
+fleet's `pq_hybrid` profile, with the admission puzzle solved, as an
+owner-only key file in a directory the app names inside its private storage.
+Every later call loads that same key. `scripts/build_android_libs.sh` builds
+`libmacula_passport_ffi.so` for `arm64-v8a` and `x86_64` (minSdk 26) with
+cargo-ndk, then generates the Kotlin bindings from that same library. It
+needs `ANDROID_NDK_HOME`, cargo-ndk and the two Rust Android targets.
+`macula-passport-ffi/tests/first_claim_on_the_phone.rs` walks the app's
+first slice: it gets the device key, initiates a passport, registers an
+identity document, drops the passport and reopens it, and the claim is
+replayed from the file.
+
 **Verification:** a full grant→use→deny→revoke integration test at both
 layers (`tests/lifecycle.rs` for the core, `macula-passport-ffi/tests/lifecycle.rs`
 through the actual `FfiPassport` object, since FFI-layer marshalling isn't
