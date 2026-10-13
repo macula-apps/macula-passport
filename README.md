@@ -18,13 +18,13 @@
 
 ---
 
-> **Status, 2026-10-13:** v0 built, first Android app — `macula-passport` (`src/`)
-> and its UniFFI bindings (`macula-passport-ffi/`) are both built, tested and
-> structured: one module per capability, domain types with zero knowledge of how
-> they're persisted. `android/` is the first app on them: a holder starts their
-> passport on their own Android phone and records an identity document, kept only
-> on that phone. No iOS app yet. See "Built so far" and "Still open" below for
-> the real, current state.
+> **Status, 2026-10-13:** v0 built, first Android app — `macula-passport`
+> (`src/`) and its UniFFI bindings (`macula-passport-ffi/`) are both built,
+> tested and structured: one module per capability, domain types with zero
+> knowledge of how they're persisted. `android/` is the first app on them: a
+> holder starts their passport on their own Android phone and records an
+> identity document, kept only on that phone. No iOS app yet. See "Built so
+> far" and "Still open" below for the real, current state.
 
 ## What is this?
 
@@ -44,8 +44,8 @@ biometric templates never leave the phone at all (see "Built so far").
   <img src="assets/macula-passport-qr.svg" alt="QR code for https://macula.io/passport.apk" width="260" height="260">
 </p>
 
-Scan that with the phone, or open <https://macula.io/passport.apk> on it: both
-lead to the latest signed release apk.
+Scan that with the phone, or open <https://macula.io/passport.apk> on it:
+both lead to the latest signed release apk.
 
 1. Scan the QR code on [macula.io/use](https://macula.io/use), or open
    <https://github.com/macula-apps/macula-passport/releases/latest/download/macula-passport.apk>
@@ -73,15 +73,14 @@ again.
 
 **Prior art to read before extending any of this:**
 
-- `hecate-services/hecate-passport` — the original design pass, as an
-  Erlang/OTP service on `hecate-om`. Local-only for now, not yet pushed.
-  Its `plans/DESIGN_HECATE_PASSPORT.md` is the domain model this repo
-  inherits: one event-sourced dossier per holder, custodian/guardian model
-  for minors and animals, and `disclose_data` as a synchronous,
-  consent-gated RPC rather than a queryable read model. (That design doc
-  itself still says "subject" — this repo corrected it to `holder`, since
-  that's what a passport itself calls the person it's about; the Erlang
-  doc hasn't been touched.)
+- An earlier design pass, unpushed — a passport service on Erlang/OTP,
+  local-only, never published — is the domain model this repo inherits:
+  one event-sourced dossier per holder, custodian/guardian model for
+  minors and animals, and `disclose_data` as a synchronous, consent-gated
+  RPC rather than a queryable read model. (That design doc itself still
+  says "subject" — this repo corrected it to `holder`, since that's what
+  a passport itself calls the person it's about; the Erlang doc hasn't
+  been touched.)
 - [`macula-io/macula-rust`](https://github.com/macula-io/macula-rust) —
   the mesh client this app builds on, and the reference for the
   Rust-core-plus-UniFFI-bindings pattern this app follows to reach iOS and
@@ -89,11 +88,11 @@ again.
 
 **Why a separate repo, and why here:** a phone is a more credible "the
 holder's own device" than a server the holder happens to operate — most
-people carry one, few people run a service. `hecate-passport`'s domain
+people carry one, few people run a service. That earlier pass's domain
 design carries over; its Erlang/OTP CMD/PRJ/QRY department structure does
 not — this is a single mobile-native core, not a division. `macula-apps`
-holds native mobile/CLI-shaped apps; `hecate-apps` stays for desktop-style
-ones.
+holds native mobile/CLI-shaped apps; desktop-style ones live in their own
+org.
 
 ## Structure — one module per capability, not per technical kind
 

@@ -1,5 +1,5 @@
-//! One module per desk from the design doc's table
-//! (`plans/DESIGN_HECATE_PASSPORT.md` §2 in `hecate-services/hecate-passport`).
+//! One module per desk from the original design pass's table (§2 of that
+//! unpushed Erlang/OTP passport design doc).
 //! Each owns its own command, its own event, and the logic that decides
 //! between them — read one module to understand one capability
 //! completely, never several.
