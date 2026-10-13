@@ -1,0 +1,94 @@
+name: release
+
+# A v* tag publishes the signed app (#6): a person scans the QR code for
+# https://github.com/macula-apps/macula-passport/releases/latest/download/macula-passport.apk,
+# downloads it without a GitHub login and installs it, and the next tag
+# installs over it because every release is signed with the same key.
+#
+# The key is the passport's long-lived release key, held only in two secrets:
+# ANDROID_RELEASE_KEYSTORE_B64 (the PKCS12 keystore, base64) and
+# ANDROID_RELEASE_KEYSTORE_PASSWORD. scripts/create_release_key.sh makes both
+# and the owner's encrypted backup. A lost key means no phone can ever update
+# the app again.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    name: signed release apk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: The tag is a version and the key is present
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "tag $GITHUB_REF_NAME is not vMAJOR.MINOR.PATCH"; exit 1; }
+          [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ] || { echo "the release key secrets are not set"; exit 1; }
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
+        id: ndk
+        with:
+          ndk-version: r27c
+      - run: cargo install cargo-ndk --version 4.1.2 --locked
+      - name: Native libraries + Kotlin bindings
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: bash scripts/build_android_libs.sh
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          gradle-version: "9.7.1"
+      - name: Signed release apk
+        working-directory: android
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_B64 }}
+          MACULA_PASSPORT_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+        run: |
+          export MACULA_PASSPORT_STORE_FILE="$RUNNER_TEMP/release.p12"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$MACULA_PASSPORT_STORE_FILE"
+          gradle testDebugUnitTest assembleRelease lintRelease -PversionName="${GITHUB_REF_NAME#v}"
+          rm -f "$MACULA_PASSPORT_STORE_FILE"
+      - name: Signed, both ABIs, named for the fixed URL
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee signature.txt
+          grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" signature.txt
+          unzip -l "$APK" > apk-contents.txt
+          grep -q "lib/arm64-v8a/libmacula_passport_ffi.so" apk-contents.txt
+          grep -q "lib/x86_64/libmacula_passport_ffi.so" apk-contents.txt
+          cp "$APK" macula-passport.apk
+          {
+            echo "Install: scan the QR code on macula.io/use, or open"
+            echo "https://github.com/macula-apps/macula-passport/releases/latest/download/macula-passport.apk"
+            echo "on your Android phone (Android 8 or later), and allow installs from your browser once."
+            echo
+            echo "sha256 of macula-passport.apk:"
+            echo '```'
+            sha256sum macula-passport.apk | cut -d' ' -f1
+            echo '```'
+            echo "Signing certificate:"
+            echo '```'
+            grep -E "Signer: certificate (DN|SHA-256 digest)" signature.txt
+            echo '```'
+          } > notes.md
+          cat notes.md
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" macula-passport.apk --repo "$GITHUB_REPOSITORY" --title "Macula Passport $GITHUB_REF_NAME" --notes-file notes.md --verify-tag

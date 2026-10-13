@@ -4,6 +4,19 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// The release version comes from the v* tag (release.yml passes -PversionName);
+// the code orders installs, so 1.2.3 is 10203 and every later tag installs over
+// an earlier one.
+val releaseVersionName = providers.gradleProperty("versionName").getOrElse("0.1.0")
+val releaseVersionCode = releaseVersionName.split(".").map { it.toInt() }
+    .let { (major, minor, patch) -> major * 10000 + minor * 100 + patch }
+
+// The release key lives only in CI secrets (#6); release.yml writes the
+// keystore to the runner and names it here. Without these the release apk is
+// built unsigned, which no phone installs.
+val releaseStoreFile = System.getenv("MACULA_PASSPORT_STORE_FILE")
+val releaseStorePassword = System.getenv("MACULA_PASSPORT_STORE_PASSWORD")
+
 android {
     namespace = "io.macula.passport"
     // compose-bom's transitive deps need API 37 to compile against.
@@ -13,8 +26,8 @@ android {
         applicationId = "io.macula.passport"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
         // The two ABIs scripts/build_android_libs.sh builds: phones and the
         // CI emulator.
         ndk {
@@ -22,9 +35,21 @@ android {
         }
     }
 
+    signingConfigs {
+        if (releaseStoreFile != null && releaseStorePassword != null) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = releaseStorePassword
+                keyAlias = "macula-passport"
+                keyPassword = releaseStorePassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

@@ -38,6 +38,30 @@ not — this is a single mobile-native core, not a division. `macula-apps`
 holds native mobile/CLI-shaped apps; `hecate-apps` stays for desktop-style
 ones.
 
+## Install it on your Android phone
+
+1. Scan the QR code on [macula.io/use](https://macula.io/use), or open
+   <https://github.com/macula-apps/macula-passport/releases/latest/download/macula-passport.apk>
+   on the phone (Android 8 or later). No GitHub account is needed.
+2. Open the downloaded `macula-passport.apk`. The first time, Android asks
+   to allow installs from your browser; allow it once.
+3. Open Macula Passport and tap "Start my passport".
+
+Every release is signed with the same key, so a newer `macula-passport.apk`
+installs over the one you have and keeps your passport. To be told about
+new versions, add this repository to
+[Obtainium](https://github.com/ImranR98/Obtainium), which tracks GitHub
+releases. Each release's notes carry the apk's sha256 and its signing
+certificate.
+
+**Releasing** (maintainers): a `vMAJOR.MINOR.PATCH` tag runs
+`.github/workflows/release.yml`, which builds the release apk for both ABIs,
+signs it with the release key and publishes it as `macula-passport.apk` on
+the GitHub release. The key is in two repository secrets only, made once
+by its owner with `scripts/create_release_key.sh`, which also writes the
+owner's encrypted backup. Lose the key and no phone can update the app
+again.
+
 ## Structure — one module per capability, not per technical kind
 
 ```
