@@ -21,6 +21,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.macula.passport.register_identity_document.DocumentType
@@ -30,6 +32,8 @@ import io.macula.passport.register_identity_document.formatDay
 import uniffi.macula_passport_ffi.FfiClaim
 import uniffi.macula_passport_ffi.FfiValue
 
+const val ADD_DOCUMENT = "Add document"
+
 /** The dossier as replayed from the file on this phone: every claim it holds. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,10 +41,13 @@ fun DossierScreen(claims: List<FfiClaim>, onAddDocument: () -> Unit) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("My passport") }) },
         floatingActionButton = {
+            // The button's label is set on the button itself: its text did not reach the
+            // accessibility tree, so a screen reader announced an unnamed button (#5).
             ExtendedFloatingActionButton(
                 onClick = onAddDocument,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Add document") },
+                text = { Text(ADD_DOCUMENT) },
+                modifier = Modifier.semantics { contentDescription = ADD_DOCUMENT },
             )
         },
     ) { inner ->

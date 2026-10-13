@@ -66,6 +66,10 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     lint {
         // The generated bindings call java.lang.ref.Cleaner (API 33) only
         // behind a runtime class check with a JNA fallback below it; Lint
@@ -88,4 +92,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     testImplementation("junit:junit:4.13.2")
+    // Compose semantics checked on the JVM (#5): what a screen reader is told.
+    testImplementation("org.robolectric:robolectric:4.16")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
