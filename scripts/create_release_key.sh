@@ -30,6 +30,12 @@ if gh secret list -R "$REPO" | grep -q '^ANDROID_RELEASE_KEYSTORE_B64'; then
     exit 1
 fi
 
+# gpg asks for the passphrase through pinentry on this terminal; stdin
+# carries the key, so the prompt must not read it.
+[ -t 0 ] || { echo "Run this in a terminal: gpg asks for a passphrase."; exit 1; }
+GPG_TTY=$(tty)
+export GPG_TTY
+
 umask 077
 mkdir "$WORK"
 head -c 32 /dev/urandom | base64 | tr -d '/+=\n' > "$WORK/password"
@@ -52,14 +58,14 @@ base64 -w0 "$WORK/release.p12" | gh secret set ANDROID_RELEASE_KEYSTORE_B64 -R "
 gh secret set ANDROID_RELEASE_KEYSTORE_PASSWORD -R "$REPO" < "$WORK/password"
 
 echo "3/4 Your encrypted backup. Choose a passphrase and keep it in your password manager."
-echo "    gpg asks for it once here; step 4 asks again, which catches a typo."
+echo "    gpg asks for it twice here, then once more in step 4 to prove the backup."
 tar -C "$WORK" -cf - release.p12 password README.txt \
-    | gpg --symmetric --cipher-algo AES256 --pinentry-mode loopback --output "$BACKUP"
+    | gpg --symmetric --cipher-algo AES256 --output "$BACKUP"
 
 echo "4/4 Proving the backup decrypts (gpg asks for the passphrase once more)..."
 gpg --forget-cached-passphrase >/dev/null 2>&1 || true
 gpg-connect-agent reloadagent /bye >/dev/null 2>&1 || true
-RESTORED=$(gpg --decrypt --pinentry-mode loopback "$BACKUP" 2>/dev/null | tar -xOf - release.p12 | sha256sum | cut -d' ' -f1)
+RESTORED=$(gpg --decrypt "$BACKUP" 2>/dev/null | tar -xOf - release.p12 | sha256sum | cut -d' ' -f1)
 ORIGINAL=$(sha256sum "$WORK/release.p12" | cut -d' ' -f1)
 [ "$RESTORED" = "$ORIGINAL" ] || { echo "The backup did NOT decrypt to the same key. Nothing removed; ask for help."; exit 1; }
 echo "    The backup decrypts to the same key."
@@ -70,7 +76,9 @@ echo "    $CERT"
 echo "Your backup: $BACKUP"
 echo "Copy it to two places you trust (for example your password manager and a USB stick),"
 echo "with the passphrase in your password manager."
-read -r -p "Remove the plaintext key in $WORK now? CI and your backup both hold it. [Y/n] " answer
+# No answer (no terminal left, end of input) takes the default: the backup is proven by now.
+answer=""
+read -r -p "Remove the plaintext key in $WORK now? CI and your backup both hold it. [Y/n] " answer || true
 case "${answer:-Y}" in
     [Nn]*) echo "Kept $WORK. Remove it yourself once the backup is stored." ;;
     *)     rm -rf "$WORK"; echo "Removed $WORK." ;;
