@@ -83,3 +83,48 @@ jobs:
         run: |
           grep -rq "FfiPassport" bindings/kotlin
           grep -rq "FfiPassport" bindings/swift
+
+  apk:
+    # The app a holder installs (#3): the passport library cross-built for the
+    # phone and the emulator ABIs, Kotlin bindings generated from that same
+    # library, the shell's unit tests and lint, and the debug APK as an artifact.
+    name: android apk (arm64-v8a + x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
+        id: ndk
+        with:
+          ndk-version: r27c
+      - run: cargo install cargo-ndk --version 4.1.2 --locked
+      - name: Native libraries + Kotlin bindings
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: bash scripts/build_android_libs.sh
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          gradle-version: "9.7.1"
+      - name: Unit tests, debug APK, lint
+        working-directory: android
+        run: gradle testDebugUnitTest assembleDebug lintDebug
+      - name: The APK carries the library for both ABIs
+        run: |
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk > apk-contents.txt
+          grep -q "lib/arm64-v8a/libmacula_passport_ffi.so" apk-contents.txt
+          grep -q "lib/x86_64/libmacula_passport_ffi.so" apk-contents.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macula-passport-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

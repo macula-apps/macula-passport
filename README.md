@@ -5,13 +5,14 @@ animal in someone's care — event-sourced **on the holder's own device**,
 disclosed to other parties only through an explicit, per-request,
 consent-gated exchange. Never broadcast, never stored anywhere but here.
 
-## Status: v0 built, no mobile app yet
+## Status: v0 built, first Android app
 
 `macula-passport` (`src/`) and its UniFFI bindings (`macula-passport-ffi/`)
-are both built, tested, and structured — one module per capability, domain types
-with zero knowledge of how they're persisted. What's still missing: CI, and
-an actual Kotlin/Swift app consuming these bindings. See "Built so far" and
-"Still open" below for the real, current state.
+are both built, tested, and structured: one module per capability, domain types
+with zero knowledge of how they're persisted. `android/` is the first app on
+them: a holder starts their passport on their own Android phone and records an
+identity document, kept only on that phone. No iOS app yet. See "Built so far"
+and "Still open" below for the real, current state.
 
 **Prior art to read before extending any of this:**
 
@@ -156,6 +157,20 @@ first slice: it gets the device key, initiates a passport, registers an
 identity document, drops the passport and reopens it, and the claim is
 replayed from the file.
 
+**The Android app (`android/`).** Kotlin and Compose, minSdk 26, sliced by
+desk: `initiate_passport` (start screen), `register_identity_document` (the
+document form: kind, number, issuing country picked from a list, expiry from a
+date picker; one claim `identity.<passport|id_card|driving_licence>.number`
+with the number as text, the ISO 3166-1 alpha-2 country as issuer and expiry at
+the end of its last valid day, UTC) and `review_dossier` (the claims replayed
+from the file). `PassportOnThisPhone` keeps `passport.db`, the holder id and
+the device key under the app's private files. Backup is off: no cloud backup
+and no device transfer of any of it. Build: `scripts/build_android_libs.sh
+android/app/src/main`, then `gradle testDebugUnitTest assembleDebug lintDebug`
+in `android/` (Gradle 9.7.1, JDK 21). Walked on an Android 16 emulator: the
+first start creates the device key, the document is recorded, and after the
+app is killed and reopened the same key loads and the claim is replayed.
+
 **Verification:** a full grant→use→deny→revoke integration test at both
 layers (`tests/lifecycle.rs` for the core, `macula-passport-ffi/tests/lifecycle.rs`
 through the actual `FfiPassport` object, since FFI-layer marshalling isn't
@@ -163,9 +178,8 @@ exercised by the core's own test), CBOR round-trip tests for every event
 variant, and real `uniffi-bindgen generate` runs for both `--language
 kotlin` and `--language swift` — confirming the full API surface actually
 codegens with correct types, not just that the Rust side compiles. No
-Kotlin/Swift/mobile toolchain exists in this dev environment (same
-constraint `macula-rust-ffi` has), so this is the same verification
-bar that repo's own CI settles for. `cargo test --workspace` and `cargo
+Swift toolchain is used yet; the Kotlin side is built and run by the
+Android app above and its CI job. `cargo test --workspace` and `cargo
 clippy --workspace --all-targets` both clean throughout.
 
 ## Still open
@@ -173,9 +187,10 @@ clippy --workspace --all-targets` both clean throughout.
 CI (`.github/workflows/ci.yml`, GitHub-hosted) runs on every push and pull
 request: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test
 --workspace`, and a bindings check that builds the FFI library and generates
-the Kotlin and Swift bindings from it. No actual
-Kotlin/Swift consumer app exists — the bindings are verified to generate
-correctly, not run against a real mobile build. Field-level schemas
+the Kotlin and Swift bindings from it; the `apk` job builds the Android
+libraries with cargo-ndk, runs the app's unit tests and lint, and checks both
+ABIs' libraries are in the debug APK it uploads. No Swift consumer app exists
+yet. Field-level schemas
 beyond the claims-model shape itself (which jurisdictions' documents,
 which biometric modalities, a health-observation vocabulary) are each
 still a real design decision, not yet made.
