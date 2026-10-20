@@ -19,7 +19,13 @@ permissions:
   contents: write
 
 jobs:
+  # NOTHING IS RELEASED WHILE ITS OWN TESTS ARE RED: ci.yml on this
+  # commit, and the release waits on it (mcl-om#34).
+  tests:
+    uses: ./.github/workflows/ci.yml
+
   apk:
+    needs: tests
     name: signed release apk
     runs-on: ubuntu-latest
     steps:
