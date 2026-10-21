@@ -26,20 +26,13 @@ fn temp_db_path(name: &str) -> String {
         .to_string()
 }
 
-#[test]
-fn disclosure_lifecycle_through_the_ffi_object() {
-    let path = temp_db_path("lifecycle");
-    let holder_id = new_holder_id();
-    assert_eq!(holder_id.len(), 16);
-
-    let passport = FfiPassport::open(path, holder_id).unwrap();
-    let holder_key = key(1);
-    let requester = key(2);
-
+/// An open passport with its identity document registered: the state every
+/// case below starts from.
+fn registered_passport(name: &str) -> FfiPassport {
+    let passport = FfiPassport::open(temp_db_path(name), new_holder_id()).unwrap();
     assert!(!passport.is_initiated().unwrap());
     passport.initiate(FfiHolderKind::Human, 100).unwrap();
     assert!(passport.is_initiated().unwrap());
-
     passport
         .register_identity_document(
             FfiClaim {
@@ -49,10 +42,17 @@ fn disclosure_lifecycle_through_the_ffi_object() {
                 captured_at: 100,
                 expires_at: None,
             },
-            holder_key.clone(),
+            key(1),
         )
         .unwrap();
     assert_eq!(passport.list_claims().unwrap().len(), 1);
+    passport
+}
+
+#[test]
+fn the_ffi_object_denies_without_a_grant_then_discloses_with_one() {
+    let passport = registered_passport("lifecycle");
+    let requester = key(2);
 
     // No grant yet: denied, not an error.
     let denied = passport
@@ -75,18 +75,14 @@ fn disclosure_lifecycle_through_the_ffi_object() {
             requester.clone(),
             "border check".to_string(),
             Some(1000),
-            holder_key.clone(),
+            key(1),
         )
         .unwrap();
     assert_eq!(grant_id.len(), 16);
     assert_eq!(passport.list_active_grants().unwrap().len(), 1);
 
     let disclosed = passport
-        .disclose_data(
-            requester.clone(),
-            "identity.passport.number".to_string(),
-            200,
-        )
+        .disclose_data(requester, "identity.passport.number".to_string(), 200)
         .unwrap();
     match disclosed {
         FfiDisclosureOutcome::Disclosed { claim } => {
@@ -94,10 +90,23 @@ fn disclosure_lifecycle_through_the_ffi_object() {
         }
         other => panic!("expected Disclosed, got {other:?}"),
     }
+}
 
-    passport
-        .revoke_data_access(grant_id, holder_key, 300)
+#[test]
+fn a_revoked_grant_denies_again_through_the_ffi_object() {
+    let passport = registered_passport("lifecycle-revoked");
+    let requester = key(2);
+    let grant_id = passport
+        .grant_data_access(
+            "identity.*".to_string(),
+            requester.clone(),
+            "border check".to_string(),
+            Some(1000),
+            key(1),
+        )
         .unwrap();
+
+    passport.revoke_data_access(grant_id, key(1), 300).unwrap();
     assert_eq!(passport.list_active_grants().unwrap().len(), 0);
 
     let denied_again = passport

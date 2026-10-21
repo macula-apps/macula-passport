@@ -29,12 +29,12 @@ fn apply(store: &mut Store, holder: Uuid, cmd: Command) -> PassportEvent {
     event
 }
 
-#[test]
-fn disclosure_lifecycle_grant_use_deny_revoke() {
+/// An initiated dossier with this holder's identity claim registered, and
+/// the holder's key and the requester's.
+fn initiated_dossier() -> (Store, Uuid, Vec<u8>, Vec<u8>) {
     let mut store = Store::open_in_memory().unwrap();
     let holder = Uuid::now_v7();
-    let holder_key = key(1);
-    let requester = key(2);
+    let (holder_key, requester) = (key(1), key(2));
 
     apply(
         &mut store,
@@ -44,7 +44,6 @@ fn disclosure_lifecycle_grant_use_deny_revoke() {
             at: 100,
         }),
     );
-
     apply(
         &mut store,
         holder,
@@ -59,18 +58,48 @@ fn disclosure_lifecycle_grant_use_deny_revoke() {
             acting_as: holder_key.clone(),
         }),
     );
+    (store, holder, holder_key, requester)
+}
 
-    // No grant yet: disclose_data must deny, not error, and must record why.
+/// A grant of `identity.*` to the requester, its id returned.
+fn grant(store: &mut Store, holder: Uuid, requester: &[u8], holder_key: &[u8]) -> Uuid {
+    let granted = apply(
+        store,
+        holder,
+        Command::GrantDataAccessV1(GrantDataAccessV1 {
+            claim_type_prefix: "identity.*".to_string(),
+            requester: requester.to_vec(),
+            purpose: "border check".to_string(),
+            expires_at: Some(1000),
+            acting_as: holder_key.to_vec(),
+        }),
+    );
+    match granted {
+        PassportEvent::DataAccessGrantedV1(e) => e.grant.id,
+        _ => unreachable!("a grant is answered with DataAccessGrantedV1"),
+    }
+}
+
+/// A disclose of this holder's passport number at `at`.
+fn disclose(store: &Store, holder: Uuid, requester: &[u8], at: i64) -> PassportEvent {
     let state = Dossier::replay(&store.load(holder).unwrap());
-    let denied = handler::handle(
+    handler::handle(
         &state,
         Command::DiscloseDataV1(DiscloseDataV1 {
-            requester: requester.clone(),
+            requester: requester.to_vec(),
             claim_type: "identity.passport.number".to_string(),
-            at: 150,
+            at,
         }),
     )
-    .unwrap();
+    .unwrap()
+}
+
+#[test]
+fn disclosure_denies_without_a_grant_then_discloses_with_one() {
+    let (mut store, holder, holder_key, requester) = initiated_dossier();
+
+    // No grant yet: disclose_data must deny, not error, and must record why.
+    let denied = disclose(&store, holder, &requester, 150);
     assert!(matches!(
         denied,
         PassportEvent::DataAccessDeniedV1(ref e) if e.reason == DenialReason::NoMatchingGrant
@@ -78,32 +107,8 @@ fn disclosure_lifecycle_grant_use_deny_revoke() {
     store.append(holder, &denied).unwrap();
 
     // Grant access, then the same request must succeed.
-    let granted_event = apply(
-        &mut store,
-        holder,
-        Command::GrantDataAccessV1(GrantDataAccessV1 {
-            claim_type_prefix: "identity.*".to_string(),
-            requester: requester.clone(),
-            purpose: "border check".to_string(),
-            expires_at: Some(1000),
-            acting_as: holder_key.clone(),
-        }),
-    );
-    let grant_id = match granted_event {
-        PassportEvent::DataAccessGrantedV1(e) => e.grant.id,
-        _ => unreachable!(),
-    };
-
-    let state = Dossier::replay(&store.load(holder).unwrap());
-    let disclosed = handler::handle(
-        &state,
-        Command::DiscloseDataV1(DiscloseDataV1 {
-            requester: requester.clone(),
-            claim_type: "identity.passport.number".to_string(),
-            at: 200,
-        }),
-    )
-    .unwrap();
+    let grant_id = grant(&mut store, holder, &requester, &holder_key);
+    let disclosed = disclose(&store, holder, &requester, 200);
     match &disclosed {
         PassportEvent::DataDisclosedV1(e) => assert_eq!(e.via_grant, grant_id),
         other => panic!("expected DataDisclosedV1, got {other:?}"),
@@ -111,10 +116,17 @@ fn disclosure_lifecycle_grant_use_deny_revoke() {
     store.append(holder, &disclosed).unwrap();
 
     // The disclosed value itself matches what was registered.
+    let state = Dossier::replay(&store.load(holder).unwrap());
     let disclosed_claim = state
         .current_claim("identity.passport.number", 200)
         .unwrap();
     assert_eq!(disclosed_claim.value, Value::text("BE1234567"));
+}
+
+#[test]
+fn a_revoked_grant_denies_again() {
+    let (mut store, holder, holder_key, requester) = initiated_dossier();
+    let grant_id = grant(&mut store, holder, &requester, &holder_key);
 
     // Revoke, then the same request must deny again, distinguishing
     // "revoked" from "never granted".
@@ -123,20 +135,11 @@ fn disclosure_lifecycle_grant_use_deny_revoke() {
         holder,
         Command::RevokeDataAccessV1(RevokeDataAccessV1 {
             grant_id,
-            acting_as: holder_key.clone(),
+            acting_as: holder_key,
             at: 300,
         }),
     );
-    let state = Dossier::replay(&store.load(holder).unwrap());
-    let denied_again = handler::handle(
-        &state,
-        Command::DiscloseDataV1(DiscloseDataV1 {
-            requester,
-            claim_type: "identity.passport.number".to_string(),
-            at: 350,
-        }),
-    )
-    .unwrap();
+    let denied_again = disclose(&store, holder, &requester, 350);
     assert!(matches!(
         denied_again,
         PassportEvent::DataAccessDeniedV1(ref e) if e.reason == DenialReason::GrantRevoked

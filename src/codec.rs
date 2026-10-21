@@ -378,28 +378,43 @@ mod tests {
         );
     }
 
-    #[test]
-    fn every_variant_round_trips_through_cbor() {
-        let key = |b: u8| vec![b; 32];
-        let claim = Claim {
+    /// A key of `b` repeated, the shape every key in these events has.
+    fn key(b: u8) -> Vec<u8> {
+        vec![b; 32]
+    }
+
+    fn sample_claim() -> Claim {
+        Claim {
             claim_type: "identity.passport.icao9303".to_string(),
             value: Value::text("P<BEL..."),
             issuer: Some("Kingdom of Belgium".to_string()),
             captured_at: 1000,
             expires_at: Some(2000),
-        };
-        let sample = BiometricSample {
+        }
+    }
+
+    fn sample_biometric() -> BiometricSample {
+        BiometricSample {
             modality: "face".to_string(),
             template: vec![1, 2, 3, 4],
             captured_at: 1000,
-        };
-        let grant = Grant {
+        }
+    }
+
+    fn sample_grant() -> Grant {
+        Grant {
             id: Uuid::now_v7(),
             claim_type_prefix: "identity.*".to_string(),
             requester: key(2),
             purpose: "border check".to_string(),
             expires_at: Some(9999),
-        };
+        }
+    }
+
+    /// Every identity event, through CBOR and back.
+    #[test]
+    fn every_identity_event_round_trips_through_cbor() {
+        let (claim, sample) = (sample_claim(), sample_biometric());
 
         roundtrip(PassportEvent::PassportInitiatedV1(PassportInitiatedV1 {
             holder_kind: HolderKind::Human,
@@ -441,16 +456,23 @@ mod tests {
         ));
         roundtrip(PassportEvent::BiometricSampleCapturedV1(
             BiometricSampleCapturedV1 {
-                sample: sample.clone(),
+                sample,
                 captured_by: key(1),
             },
         ));
         roundtrip(PassportEvent::HealthObservationRecordedV1(
             HealthObservationRecordedV1 {
-                claim: claim.clone(),
+                claim,
                 recorded_by: key(1),
             },
         ));
+    }
+
+    /// Every disclosure event, through CBOR and back.
+    #[test]
+    fn every_access_event_round_trips_through_cbor() {
+        let grant = sample_grant();
+
         roundtrip(PassportEvent::DataAccessGrantedV1(DataAccessGrantedV1 {
             grant: grant.clone(),
             granted_by: key(1),
